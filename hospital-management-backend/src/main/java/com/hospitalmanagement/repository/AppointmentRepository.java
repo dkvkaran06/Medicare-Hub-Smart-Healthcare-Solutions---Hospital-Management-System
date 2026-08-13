@@ -1,0 +1,16 @@
+package com.hospitalmanagement.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.hospitalmanagement.entity.Appointment;
+import com.hospitalmanagement.entity.AppointmentStatus;
+
+@Repository
+public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
+    List<Appointment> findByStatus(AppointmentStatus status);
+
+    List<Appointment> findByPatientId(Long patientId);
+}

@@ -1,0 +1,226 @@
+import { useEffect, useMemo, useState } from 'react';
+import {
+  createAppointment,
+  deleteAppointment,
+  getAppointments,
+  getDoctors,
+  getPatients,
+  updateAppointment
+} from '../api/hospitalApi';
+
+const emptyForm = {
+  id: null,
+  appointmentDate: '',
+  appointmentTime: '',
+  status: 'SCHEDULED',
+  patientId: '',
+  doctorId: ''
+};
+
+export default function Appointments() {
+  const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('error');
+  const [showForm, setShowForm] = useState(false);
+  const [filterDate, setFilterDate] = useState('');
+  const [filterDoctor, setFilterDoctor] = useState('');
+
+  const patientNameById = useMemo(() => {
+    return patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
+  }, [patients]);
+
+  const doctorNameById = useMemo(() => {
+    return doctors.reduce((acc, d) => { acc[d.id] = d.name; return acc; }, {});
+  }, [doctors]);
+
+  const loadData = async () => {
+    const [aptRes, patRes, docRes] = await Promise.all([
+      getAppointments(), getPatients(), getDoctors()
+    ]);
+    setAppointments(aptRes.data);
+    setPatients(patRes.data);
+    setDoctors(docRes.data);
+  };
+
+  useEffect(() => {
+    loadData().catch(() => showMessage('Failed to load appointments', 'error'));
+  }, []);
+
+  const showMessage = (msg, type = 'error') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 4000);
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((curr) => ({ ...curr, [name]: value }));
+  };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setShowForm(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const payload = {
+      ...form,
+      patientId: Number(form.patientId),
+      doctorId: Number(form.doctorId)
+    };
+
+    try {
+      if (form.id) {
+        await updateAppointment(form.id, payload);
+        showMessage('Appointment updated successfully', 'success');
+      } else {
+        await createAppointment(payload);
+        showMessage('Appointment created successfully', 'success');
+      }
+      resetForm();
+      await loadData();
+    } catch (error) {
+      showMessage(error.response?.data?.message || 'Failed to save appointment', 'error');
+    }
+  };
+
+  const handleEdit = (apt) => {
+    setForm({
+      ...apt,
+      patientId: apt.patientId ? String(apt.patientId) : '',
+      doctorId: apt.doctorId ? String(apt.doctorId) : ''
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteAppointment(id);
+      showMessage('Appointment deleted successfully', 'success');
+      await loadData();
+    } catch (error) {
+      showMessage(error.response?.data?.message || 'Failed to delete appointment', 'error');
+    }
+  };
+
+  const getStatusClass = (status) => {
+    if (!status) return '';
+    return status.toLowerCase();
+  };
+
+  const filtered = appointments.filter((apt) => {
+    if (filterDate && apt.appointmentDate !== filterDate) return false;
+    if (filterDoctor && String(apt.doctorId) !== filterDoctor) return false;
+    return true;
+  });
+
+  return (
+    <div className="page-content">
+      <div className="page-header">
+        <div className="page-header-left">
+          <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
+          <h2 className="page-title">Schedule Manager</h2>
+        </div>
+        <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Appointment</button>
+      </div>
+
+      {message && <div className={`error-banner ${messageType}`}>{message}</div>}
+
+      <div className="page-card">
+        <div className="table-section-title">All Appointments ({filtered.length})</div>
+
+        <div className="filter-row">
+          <label>Date:</label>
+          <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+          <label>Doctor:</label>
+          <select value={filterDoctor} onChange={(e) => setFilterDoctor(e.target.value)}>
+            <option value="">Choose Doctor Name from the list</option>
+            {doctors.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+          <button className="btn-filter" onClick={() => { setFilterDate(''); setFilterDoctor(''); }}>
+            ⟲ Clear
+          </button>
+        </div>
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Apt. No</th>
+                <th>Patient Name</th>
+                <th>Doctor</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Events</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((apt) => (
+                <tr key={apt.id}>
+                  <td>{apt.id}</td>
+                  <td>{patientNameById[apt.patientId] || apt.patientId}</td>
+                  <td>{doctorNameById[apt.doctorId] || apt.doctorId}</td>
+                  <td>{apt.appointmentDate}</td>
+                  <td>{apt.appointmentTime}</td>
+                  <td><span className={`status-pill ${getStatusClass(apt.status)}`}>{apt.status}</span></td>
+                  <td>
+                    <div className="action-btns">
+                      <button className="btn-edit" onClick={() => handleEdit(apt)}>✏ Edit</button>
+                      <button className="btn-view">👁 View</button>
+                      <button className="btn-delete" onClick={() => handleDelete(apt.id)}>🗑 Remove</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No appointments found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="crud-form-overlay" onClick={(e) => e.target === e.currentTarget && resetForm()}>
+          <div className="crud-form-modal">
+            <h3>{form.id ? 'Update Appointment' : 'Add New Appointment'}</h3>
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <input name="appointmentDate" type="date" value={form.appointmentDate} onChange={handleChange} required />
+                <input name="appointmentTime" type="time" value={form.appointmentTime} onChange={handleChange} required />
+                <select name="status" value={form.status} onChange={handleChange} required>
+                  <option value="SCHEDULED">SCHEDULED</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+                <select name="patientId" value={form.patientId} onChange={handleChange} required>
+                  <option value="">Select Patient</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <select name="doctorId" value={form.doctorId} onChange={handleChange} required className="full-width">
+                  <option value="">Select Doctor</option>
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="button-row">
+                <button type="button" className="secondary" onClick={resetForm}>Cancel</button>
+                <button type="submit">{form.id ? 'Update' : 'Add Appointment'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
