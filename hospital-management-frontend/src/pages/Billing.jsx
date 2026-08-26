@@ -7,6 +7,7 @@ import {
   getPatients,
   updateBill
 } from '../api/hospitalApi';
+import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
   id: null,
@@ -18,6 +19,7 @@ const emptyForm = {
 };
 
 export default function Billing() {
+  const { user } = useAuth();
   const [bills, setBills] = useState([]);
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -26,6 +28,9 @@ export default function Billing() {
   const [messageType, setMessageType] = useState('error');
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
+
+  const isAdmin = user?.role === 'admin';
+  const isPatient = user?.role === 'patient';
 
   const patientNameById = useMemo(() => {
     return patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
@@ -37,6 +42,13 @@ export default function Billing() {
       return acc;
     }, {});
   }, [appointments]);
+
+  // Find logged-in patient's record by email
+  const myPatientId = useMemo(() => {
+    if (!isPatient) return null;
+    const match = patients.find((p) => p.email === user?.email);
+    return match ? match.id : null;
+  }, [patients, user, isPatient]);
 
   const loadData = async () => {
     const [billRes, patRes, aptRes] = await Promise.all([
@@ -116,25 +128,37 @@ export default function Billing() {
     return status.toLowerCase();
   };
 
+  // Role-based filtering
   const filtered = bills.filter((b) => {
+    // Patient sees only their own bills (no linked record => see nothing)
+    if (isPatient && b.patientId !== myPatientId) return false;
+    // Admin sees all — apply user filters
     if (filterStatus && b.paymentStatus !== filterStatus) return false;
     return true;
   });
+
+  const canAdd = isAdmin;
+  const canEdit = isAdmin;
+  const canDelete = isAdmin;
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div className="page-header-left">
           <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
-          <h2 className="page-title">Billing Manager</h2>
+          <h2 className="page-title">{isPatient ? 'My Bills' : 'Billing Manager'}</h2>
         </div>
-        <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Bill</button>
+        {canAdd && (
+          <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Bill</button>
+        )}
       </div>
 
       {message && <div className={`error-banner ${messageType}`}>{message}</div>}
 
       <div className="page-card">
-        <div className="table-section-title">All Bills ({filtered.length})</div>
+        <div className="table-section-title">
+          {isPatient ? 'My' : 'All'} Bills ({filtered.length})
+        </div>
 
         <div className="filter-row">
           <label>Status:</label>
@@ -156,7 +180,7 @@ export default function Billing() {
                 <th>Amount</th>
                 <th>Date</th>
                 <th>Status</th>
-                <th>Events</th>
+                {(canEdit || canDelete) && <th>Events</th>}
               </tr>
             </thead>
             <tbody>
@@ -168,23 +192,25 @@ export default function Billing() {
                   <td>₹{bill.amount}</td>
                   <td>{bill.billDate}</td>
                   <td><span className={`status-pill ${getStatusClass(bill.paymentStatus)}`}>{bill.paymentStatus}</span></td>
-                  <td>
-                    <div className="action-btns">
-                      <button className="btn-edit" onClick={() => handleEdit(bill)}>✏ Edit</button>
-                      <button className="btn-delete" onClick={() => handleDelete(bill.id)}>🗑 Remove</button>
-                    </div>
-                  </td>
+                  {(canEdit || canDelete) && (
+                    <td>
+                      <div className="action-btns">
+                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(bill)}>✏ Edit</button>}
+                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(bill.id)}>🗑 Remove</button>}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No bills found</td></tr>
+                <tr><td colSpan={canEdit || canDelete ? "7" : "6"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No bills found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showForm && (
+      {showForm && canAdd && (
         <div className="crud-form-overlay" onClick={(e) => e.target === e.currentTarget && resetForm()}>
           <div className="crud-form-modal">
             <h3>{form.id ? 'Update Bill' : 'Add New Bill'}</h3>

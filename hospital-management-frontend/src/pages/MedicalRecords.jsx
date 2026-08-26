@@ -7,6 +7,7 @@ import {
   getPatients,
   updateMedicalRecord
 } from '../api/hospitalApi';
+import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
   id: null,
@@ -19,6 +20,7 @@ const emptyForm = {
 };
 
 export default function MedicalRecords() {
+  const { user } = useAuth();
   const [records, setRecords] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -28,6 +30,10 @@ export default function MedicalRecords() {
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const isAdmin = user?.role === 'admin';
+  const isDoctor = user?.role === 'doctor';
+  const isPatient = user?.role === 'patient';
+
   const patientNameById = useMemo(() => {
     return patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
   }, [patients]);
@@ -35,6 +41,19 @@ export default function MedicalRecords() {
   const doctorNameById = useMemo(() => {
     return doctors.reduce((acc, d) => { acc[d.id] = d.name; return acc; }, {});
   }, [doctors]);
+
+  // Find linked patient/doctor by email
+  const myPatientId = useMemo(() => {
+    if (!isPatient) return null;
+    const match = patients.find((p) => p.email === user?.email);
+    return match ? match.id : null;
+  }, [patients, user, isPatient]);
+
+  const myDoctorId = useMemo(() => {
+    if (!isDoctor) return null;
+    const match = doctors.find((d) => d.email === user?.email);
+    return match ? match.id : null;
+  }, [doctors, user, isDoctor]);
 
   const loadData = async () => {
     const [recRes, patRes, docRes] = await Promise.all([
@@ -107,26 +126,42 @@ export default function MedicalRecords() {
     }
   };
 
+  // Role-based filtering
   const filtered = records.filter((r) => {
+    // Patient sees only their own records (no linked record => see nothing)
+    if (isPatient && r.patientId !== myPatientId) return false;
+    // Doctor sees only records where they are the doctor (no linked record => see nothing)
+    if (isDoctor && r.doctorId !== myDoctorId) return false;
+    // Search filter
     const patientName = patientNameById[r.patientId] || '';
     return patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  const canAdd = isAdmin || isDoctor;
+  const canEdit = isAdmin || isDoctor;
+  const canDelete = isAdmin;
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div className="page-header-left">
           <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
-          <h2 className="page-title">Medical Records</h2>
+          <h2 className="page-title">
+            {isPatient ? 'My Medical Records' : isDoctor ? 'My Patient Records' : 'Medical Records'}
+          </h2>
         </div>
-        <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Record</button>
+        {canAdd && (
+          <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Record</button>
+        )}
       </div>
 
       {message && <div className={`error-banner ${messageType}`}>{message}</div>}
 
       <div className="page-card">
-        <div className="table-section-title">All Records ({filtered.length})</div>
+        <div className="table-section-title">
+          {isPatient ? 'My' : isDoctor ? 'My Patient' : 'All'} Records ({filtered.length})
+        </div>
 
         <div className="filter-row">
           <label>Search:</label>
@@ -148,7 +183,7 @@ export default function MedicalRecords() {
                 <th>Diagnosis</th>
                 <th>Treatment</th>
                 <th>Prescription</th>
-                <th>Events</th>
+                {(canEdit || canDelete) && <th>Events</th>}
               </tr>
             </thead>
             <tbody>
@@ -160,24 +195,25 @@ export default function MedicalRecords() {
                   <td>{record.diagnosis}</td>
                   <td>{record.treatment}</td>
                   <td>{record.prescription}</td>
-                  <td>
-                    <div className="action-btns">
-                      <button className="btn-edit" onClick={() => handleEdit(record)}>✏ Edit</button>
-                      <button className="btn-view">👁 View</button>
-                      <button className="btn-delete" onClick={() => handleDelete(record.id)}>🗑 Remove</button>
-                    </div>
-                  </td>
+                  {(canEdit || canDelete) && (
+                    <td>
+                      <div className="action-btns">
+                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(record)}>✏ Edit</button>}
+                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(record.id)}>🗑 Remove</button>}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No records found</td></tr>
+                <tr><td colSpan={canEdit || canDelete ? "7" : "6"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No records found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showForm && (
+      {showForm && canAdd && (
         <div className="crud-form-overlay" onClick={(e) => e.target === e.currentTarget && resetForm()}>
           <div className="crud-form-modal">
             <h3>{form.id ? 'Update Medical Record' : 'Add New Medical Record'}</h3>

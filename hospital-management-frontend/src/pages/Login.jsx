@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { loginUser } from '../api/hospitalApi';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('admin');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -19,15 +20,17 @@ export default function Login() {
       return;
     }
 
-    // Mock login — accepts any credentials
-    const userName = email.split('@')[0];
-    login({
-      name: userName.charAt(0).toUpperCase() + userName.slice(1),
-      email,
-      role,
-    });
-
-    navigate('/dashboard');
+    setLoading(true);
+    try {
+      const response = await loginUser({ email, password });
+      login(response.data);
+      navigate('/dashboard');
+    } catch (err) {
+      const message = err.response?.data?.error || 'Login failed. Please try again.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,17 +64,8 @@ export default function Login() {
             />
           </div>
 
-          <div className="form-group">
-            <label>Login as:</label>
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="admin">Administrator</option>
-              <option value="doctor">Doctor</option>
-              <option value="patient">Patient</option>
-            </select>
-          </div>
-
-          <button type="submit" className="btn-auth">
-            Login
+          <button type="submit" className="btn-auth" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 

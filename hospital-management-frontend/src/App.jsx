@@ -30,12 +30,12 @@ export default function App() {
         }
       >
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="patients" element={<Patients />} />
-        <Route path="doctors" element={<Doctors />} />
-        <Route path="departments" element={<Departments />} />
+        <Route path="patients" element={<ProtectedRoute allowedRoles={['admin', 'doctor']}><Patients /></ProtectedRoute>} />
+        <Route path="doctors" element={<ProtectedRoute allowedRoles={['admin', 'patient']}><Doctors /></ProtectedRoute>} />
+        <Route path="departments" element={<ProtectedRoute allowedRoles={['admin']}><Departments /></ProtectedRoute>} />
         <Route path="appointments" element={<Appointments />} />
         <Route path="medical-records" element={<MedicalRecords />} />
-        <Route path="billing" element={<Billing />} />
+        <Route path="billing" element={<ProtectedRoute allowedRoles={['admin', 'patient']}><Billing /></ProtectedRoute>} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

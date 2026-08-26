@@ -7,6 +7,7 @@ import {
   getPatients,
   updateAppointment
 } from '../api/hospitalApi';
+import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
   id: null,
@@ -18,6 +19,7 @@ const emptyForm = {
 };
 
 export default function Appointments() {
+  const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -28,6 +30,10 @@ export default function Appointments() {
   const [filterDate, setFilterDate] = useState('');
   const [filterDoctor, setFilterDoctor] = useState('');
 
+  const isAdmin = user?.role === 'admin';
+  const isDoctor = user?.role === 'doctor';
+  const isPatient = user?.role === 'patient';
+
   const patientNameById = useMemo(() => {
     return patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
   }, [patients]);
@@ -35,6 +41,19 @@ export default function Appointments() {
   const doctorNameById = useMemo(() => {
     return doctors.reduce((acc, d) => { acc[d.id] = d.name; return acc; }, {});
   }, [doctors]);
+
+  // Find the logged-in user's linked patient/doctor record by email
+  const myPatientId = useMemo(() => {
+    if (!isPatient) return null;
+    const match = patients.find((p) => p.email === user?.email);
+    return match ? match.id : null;
+  }, [patients, user, isPatient]);
+
+  const myDoctorId = useMemo(() => {
+    if (!isDoctor) return null;
+    const match = doctors.find((d) => d.email === user?.email);
+    return match ? match.id : null;
+  }, [doctors, user, isDoctor]);
 
   const loadData = async () => {
     const [aptRes, patRes, docRes] = await Promise.all([
@@ -112,41 +131,59 @@ export default function Appointments() {
     return status.toLowerCase();
   };
 
+  // Role-based filtering
   const filtered = appointments.filter((apt) => {
+    // Patient sees only their own appointments (no linked record => see nothing)
+    if (isPatient && apt.patientId !== myPatientId) return false;
+    // Doctor sees only their own appointments (no linked record => see nothing)
+    if (isDoctor && apt.doctorId !== myDoctorId) return false;
+    // Admin sees all — apply user filters
     if (filterDate && apt.appointmentDate !== filterDate) return false;
     if (filterDoctor && String(apt.doctorId) !== filterDoctor) return false;
     return true;
   });
+
+  const canAdd = isAdmin;
+  const canEdit = isAdmin || isDoctor;
+  const canDelete = isAdmin;
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div className="page-header-left">
           <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
-          <h2 className="page-title">Schedule Manager</h2>
+          <h2 className="page-title">
+            {isPatient ? 'My Appointments' : isDoctor ? 'My Schedule' : 'Schedule Manager'}
+          </h2>
         </div>
-        <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Appointment</button>
+        {canAdd && (
+          <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Appointment</button>
+        )}
       </div>
 
       {message && <div className={`error-banner ${messageType}`}>{message}</div>}
 
       <div className="page-card">
-        <div className="table-section-title">All Appointments ({filtered.length})</div>
-
-        <div className="filter-row">
-          <label>Date:</label>
-          <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
-          <label>Doctor:</label>
-          <select value={filterDoctor} onChange={(e) => setFilterDoctor(e.target.value)}>
-            <option value="">Choose Doctor Name from the list</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-          <button className="btn-filter" onClick={() => { setFilterDate(''); setFilterDoctor(''); }}>
-            ⟲ Clear
-          </button>
+        <div className="table-section-title">
+          {isPatient ? 'My' : isDoctor ? 'My' : 'All'} Appointments ({filtered.length})
         </div>
+
+        {isAdmin && (
+          <div className="filter-row">
+            <label>Date:</label>
+            <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+            <label>Doctor:</label>
+            <select value={filterDoctor} onChange={(e) => setFilterDoctor(e.target.value)}>
+              <option value="">Choose Doctor Name from the list</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+            <button className="btn-filter" onClick={() => { setFilterDate(''); setFilterDoctor(''); }}>
+              ⟲ Clear
+            </button>
+          </div>
+        )}
 
         <div className="table-wrap">
           <table>
@@ -158,7 +195,7 @@ export default function Appointments() {
                 <th>Date</th>
                 <th>Time</th>
                 <th>Status</th>
-                <th>Events</th>
+                {(canEdit || canDelete) && <th>Events</th>}
               </tr>
             </thead>
             <tbody>
@@ -170,24 +207,25 @@ export default function Appointments() {
                   <td>{apt.appointmentDate}</td>
                   <td>{apt.appointmentTime}</td>
                   <td><span className={`status-pill ${getStatusClass(apt.status)}`}>{apt.status}</span></td>
-                  <td>
-                    <div className="action-btns">
-                      <button className="btn-edit" onClick={() => handleEdit(apt)}>✏ Edit</button>
-                      <button className="btn-view">👁 View</button>
-                      <button className="btn-delete" onClick={() => handleDelete(apt.id)}>🗑 Remove</button>
-                    </div>
-                  </td>
+                  {(canEdit || canDelete) && (
+                    <td>
+                      <div className="action-btns">
+                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(apt)}>✏ Edit</button>}
+                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(apt.id)}>🗑 Remove</button>}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No appointments found</td></tr>
+                <tr><td colSpan={canEdit || canDelete ? "7" : "6"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No appointments found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showForm && (
+      {showForm && (canAdd || canEdit) && (
         <div className="crud-form-overlay" onClick={(e) => e.target === e.currentTarget && resetForm()}>
           <div className="crud-form-modal">
             <h3>{form.id ? 'Update Appointment' : 'Add New Appointment'}</h3>

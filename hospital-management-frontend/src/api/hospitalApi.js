@@ -1,5 +1,9 @@
 import client from './client';
 
+// Auth
+export const registerUser = (payload) => client.post('/auth/register', payload);
+export const loginUser = (payload) => client.post('/auth/login', payload);
+
 export const getPatients = () => client.get('/patients');
 export const getPatientById = (id) => client.get(`/patients/${id}`);
 export const createPatient = (payload) => client.post('/patients', payload);

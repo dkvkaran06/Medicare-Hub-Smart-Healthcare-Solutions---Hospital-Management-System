@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { registerUser } from '../api/hospitalApi';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -8,10 +9,11 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('patient');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -20,9 +22,17 @@ export default function Register() {
       return;
     }
 
-    // Mock registration — directly logs in
-    login({ name, email, role });
-    navigate('/dashboard');
+    setLoading(true);
+    try {
+      const response = await registerUser({ name, email, password, role });
+      login(response.data);
+      navigate('/dashboard');
+    } catch (err) {
+      const message = err.response?.data?.error || 'Registration failed. Please try again.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -76,8 +86,8 @@ export default function Register() {
             </select>
           </div>
 
-          <button type="submit" className="btn-auth">
-            Sign Up
+          <button type="submit" className="btn-auth" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 

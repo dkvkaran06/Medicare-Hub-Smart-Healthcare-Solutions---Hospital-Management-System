@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { createPatient, deletePatient, getPatients, updatePatient } from '../api/hospitalApi';
+import { useEffect, useMemo, useState } from 'react';
+import { createPatient, deletePatient, getAppointments, getDoctors, getPatients, updatePatient } from '../api/hospitalApi';
+import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
   id: null,
@@ -13,20 +14,47 @@ const emptyForm = {
 };
 
 export default function Patients() {
+  const { user } = useAuth();
   const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('error');
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadPatients = async () => {
-    const response = await getPatients();
-    setPatients(response.data);
+  const isAdmin = user?.role === 'admin';
+  const isDoctor = user?.role === 'doctor';
+
+  // Find the logged-in doctor's record by email
+  const myDoctorId = useMemo(() => {
+    if (!isDoctor) return null;
+    const match = doctors.find((d) => d.email === user?.email);
+    return match ? match.id : null;
+  }, [doctors, user, isDoctor]);
+
+  // Find patient IDs that have appointments with this doctor
+  const myPatientIds = useMemo(() => {
+    if (!isDoctor || !myDoctorId) return null;
+    const ids = new Set();
+    appointments.forEach((apt) => {
+      if (apt.doctorId === myDoctorId) ids.add(apt.patientId);
+    });
+    return ids;
+  }, [appointments, myDoctorId, isDoctor]);
+
+  const loadData = async () => {
+    const [patRes, docRes, aptRes] = await Promise.all([
+      getPatients(), getDoctors(), getAppointments()
+    ]);
+    setPatients(patRes.data);
+    setDoctors(docRes.data);
+    setAppointments(aptRes.data);
   };
 
   useEffect(() => {
-    loadPatients().catch(() => showMessage('Failed to load patients', 'error'));
+    loadData().catch(() => showMessage('Failed to load patients', 'error'));
   }, []);
 
   const showMessage = (msg, type = 'error') => {
@@ -61,7 +89,7 @@ export default function Patients() {
         showMessage('Patient created successfully', 'success');
       }
       resetForm();
-      await loadPatients();
+      await loadData();
     } catch (error) {
       showMessage(error.response?.data?.message || 'Failed to save patient', 'error');
     }
@@ -76,31 +104,45 @@ export default function Patients() {
     try {
       await deletePatient(id);
       showMessage('Patient deleted successfully', 'success');
-      await loadPatients();
+      await loadData();
     } catch (error) {
       showMessage(error.response?.data?.message || 'Failed to delete patient', 'error');
     }
   };
 
-  const filteredPatients = patients.filter((p) =>
-    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Role-based filtering
+  const filteredPatients = patients.filter((p) => {
+    // Doctor sees only their own patients; no linked record => see nothing
+    if (isDoctor && (!myPatientIds || !myPatientIds.has(p.id))) return false;
+    // Search filter
+    return (
+      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  const canAdd = isAdmin;
+  const canEdit = isAdmin;
+  const canDelete = isAdmin;
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div className="page-header-left">
           <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
-          <h2 className="page-title">Patients</h2>
+          <h2 className="page-title">{isDoctor ? 'My Patients' : 'Patients'}</h2>
         </div>
-        <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add New</button>
+        {canAdd && (
+          <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add New</button>
+        )}
       </div>
 
       {message && <div className={`error-banner ${messageType}`}>{message}</div>}
 
       <div className="page-card">
-        <div className="table-section-title">All Patients ({filteredPatients.length})</div>
+        <div className="table-section-title">
+          {isDoctor ? 'My' : 'All'} Patients ({filteredPatients.length})
+        </div>
 
         <div className="filter-row">
           <label>Search:</label>
@@ -122,7 +164,7 @@ export default function Patients() {
                 <th>Age</th>
                 <th>Gender</th>
                 <th>Blood Group</th>
-                <th>Events</th>
+                {(canEdit || canDelete) && <th>Events</th>}
               </tr>
             </thead>
             <tbody>
@@ -134,16 +176,18 @@ export default function Patients() {
                   <td>{patient.age}</td>
                   <td>{patient.gender}</td>
                   <td>{patient.bloodGroup}</td>
-                  <td>
-                    <div className="action-btns">
-                      <button className="btn-edit" onClick={() => handleEdit(patient)}>✏ Edit</button>
-                      <button className="btn-delete" onClick={() => handleDelete(patient.id)}>🗑 Remove</button>
-                    </div>
-                  </td>
+                  {(canEdit || canDelete) && (
+                    <td>
+                      <div className="action-btns">
+                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(patient)}>✏ Edit</button>}
+                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(patient.id)}>🗑 Remove</button>}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredPatients.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No patients found</td></tr>
+                <tr><td colSpan={canEdit || canDelete ? "7" : "6"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No patients found</td></tr>
               )}
             </tbody>
           </table>
@@ -151,7 +195,7 @@ export default function Patients() {
       </div>
 
       {/* Modal Form */}
-      {showForm && (
+      {showForm && canAdd && (
         <div className="crud-form-overlay" onClick={(e) => e.target === e.currentTarget && resetForm()}>
           <div className="crud-form-modal">
             <h3>{form.id ? 'Update Patient' : 'Add New Patient'}</h3>

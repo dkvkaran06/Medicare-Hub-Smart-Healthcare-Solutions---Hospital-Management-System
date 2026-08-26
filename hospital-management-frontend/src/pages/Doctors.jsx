@@ -7,6 +7,7 @@ import {
   getDoctors,
   updateDoctor
 } from '../api/hospitalApi';
+import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
   id: null,
@@ -18,6 +19,7 @@ const emptyForm = {
 };
 
 export default function Doctors() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -26,6 +28,8 @@ export default function Doctors() {
   const [messageType, setMessageType] = useState('error');
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const isAdmin = user?.role === 'admin';
 
   // Read search query from URL params
   useEffect(() => {
@@ -105,14 +109,20 @@ export default function Doctors() {
     d.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const canAdd = isAdmin;
+  const canEdit = isAdmin;
+  const canDelete = isAdmin;
+
   return (
     <div className="page-content">
       <div className="page-header">
         <div className="page-header-left">
           <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
-          <h2 className="page-title">Add New Doctor</h2>
+          <h2 className="page-title">{isAdmin ? 'Add New Doctor' : 'All Doctors'}</h2>
         </div>
-        <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add New</button>
+        {canAdd && (
+          <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add New</button>
+        )}
       </div>
 
       {message && <div className={`error-banner ${messageType}`}>{message}</div>}
@@ -138,7 +148,7 @@ export default function Doctors() {
                 <th>Email</th>
                 <th>Specialties</th>
                 <th>Department</th>
-                <th>Events</th>
+                {(canEdit || canDelete) && <th>Events</th>}
               </tr>
             </thead>
             <tbody>
@@ -148,24 +158,25 @@ export default function Doctors() {
                   <td>{doctor.email}</td>
                   <td>{doctor.specialization}</td>
                   <td>{departmentNameById[doctor.departmentId] || doctor.departmentId}</td>
-                  <td>
-                    <div className="action-btns">
-                      <button className="btn-edit" onClick={() => handleEdit(doctor)}>✏ Edit</button>
-                      <button className="btn-view">👁 View</button>
-                      <button className="btn-delete" onClick={() => handleDelete(doctor.id)}>🗑 Remove</button>
-                    </div>
-                  </td>
+                  {(canEdit || canDelete) && (
+                    <td>
+                      <div className="action-btns">
+                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(doctor)}>✏ Edit</button>}
+                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(doctor.id)}>🗑 Remove</button>}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filteredDoctors.length === 0 && (
-                <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No doctors found</td></tr>
+                <tr><td colSpan={canEdit || canDelete ? "5" : "4"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No doctors found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showForm && (
+      {showForm && canAdd && (
         <div className="crud-form-overlay" onClick={(e) => e.target === e.currentTarget && resetForm()}>
           <div className="crud-form-modal">
             <h3>{form.id ? 'Update Doctor' : 'Add New Doctor'}</h3>
