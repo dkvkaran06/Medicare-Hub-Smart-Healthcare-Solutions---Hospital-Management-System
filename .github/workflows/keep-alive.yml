@@ -1,0 +1,34 @@
+name: Keep backend awake
+
+# Render's free tier spins the backend down after ~15 minutes with no traffic,
+# which is why the first login after an idle period is slow. This workflow pings
+# the lightweight /healthz endpoint on a schedule so the service stays warm.
+#
+# COST NOTE:
+#   * PUBLIC repo  -> GitHub Actions minutes are free and unlimited. Nothing else to do.
+#   * PRIVATE repo -> scheduled runs consume your 2,000 free minutes/month and
+#     WILL exceed them. In that case delete this file and use a free external
+#     pinger instead (UptimeRobot / cron-job.org) pointed at:
+#       https://medicare-hub-backend-ntpd.onrender.com/healthz
+#
+# Also note: keeping the service awake 24/7 uses ~730 of Render's 750 free
+# instance-hours/month. Fine for a single free service; if you run others too,
+# you'll hit the cap.
+#
+# GitHub's scheduler is best-effort and often runs a few minutes late, so we aim
+# for every 10 minutes to stay comfortably under Render's 15-minute limit.
+
+on:
+  schedule:
+    - cron: '5,15,25,35,45,55 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /healthz
+        run: |
+          curl -fsS --max-time 60 --retry 3 --retry-delay 15 \
+            "https://medicare-hub-backend-ntpd.onrender.com/healthz" \
+            && echo "backend is awake"
