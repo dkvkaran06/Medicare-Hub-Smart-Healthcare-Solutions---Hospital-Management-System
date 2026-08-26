@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hospitalmanagement.dto.AppointmentDTO;
@@ -34,11 +35,21 @@ public class AppointmentController {
     private final DoctorService doctorService;
 
     @GetMapping
-    public ResponseEntity<List<AppointmentDTO>> getAllAppointments() {
-        List<AppointmentDTO> appointments = appointmentService.getAllAppointments().stream()
+    public ResponseEntity<List<AppointmentDTO>> getAllAppointments(
+            @RequestParam(required = false) Long patientId,
+            @RequestParam(required = false) Long doctorId) {
+        List<Appointment> appointments;
+        if (patientId != null) {
+            appointments = appointmentService.getAppointmentsByPatientId(patientId);
+        } else if (doctorId != null) {
+            appointments = appointmentService.getAppointmentsByDoctorId(doctorId);
+        } else {
+            appointments = appointmentService.getAllAppointments();
+        }
+        List<AppointmentDTO> dtos = appointments.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(appointments);
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")

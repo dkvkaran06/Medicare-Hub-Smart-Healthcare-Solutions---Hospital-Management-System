@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createMedicalRecord,
   deleteMedicalRecord,
+  getDoctorByEmail,
   getDoctors,
   getMedicalRecords,
+  getPatientByEmail,
   getPatients,
   updateMedicalRecord
 } from '../api/hospitalApi';
@@ -56,6 +58,33 @@ export default function MedicalRecords() {
   }, [doctors, user, isDoctor]);
 
   const loadData = async () => {
+    // Patient sees only their own records; doctor sees only records where they
+    // are the doctor. Both are scoped server-side rather than fetching all.
+    if (isPatient) {
+      let myPat = null;
+      try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
+      const [recRes, docRes] = await Promise.all([
+        myPat ? getMedicalRecords({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
+        getDoctors()
+      ]);
+      setRecords(recRes.data);
+      setPatients(myPat ? [myPat] : []);
+      setDoctors(docRes.data);
+      return;
+    }
+    if (isDoctor) {
+      let myDoc = null;
+      try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { myDoc = null; }
+      const [recRes, patRes, docRes] = await Promise.all([
+        myDoc ? getMedicalRecords({ doctorId: myDoc.id }) : Promise.resolve({ data: [] }),
+        getPatients(),
+        getDoctors()
+      ]);
+      setRecords(recRes.data);
+      setPatients(patRes.data);
+      setDoctors(docRes.data);
+      return;
+    }
     const [recRes, patRes, docRes] = await Promise.all([
       getMedicalRecords(), getPatients(), getDoctors()
     ]);

@@ -10,4 +10,6 @@ import com.hospitalmanagement.entity.MedicalRecord;
 @Repository
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Long> {
     List<MedicalRecord> findByPatientId(Long patientId);
+
+    List<MedicalRecord> findByDoctorId(Long doctorId);
 }

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hospitalmanagement.dto.MedicalRecordDTO;
@@ -34,11 +35,21 @@ public class MedicalRecordController {
     private final DoctorService doctorService;
 
     @GetMapping
-    public ResponseEntity<List<MedicalRecordDTO>> getAllMedicalRecords() {
-        List<MedicalRecordDTO> records = medicalRecordService.getAllMedicalRecords().stream()
+    public ResponseEntity<List<MedicalRecordDTO>> getAllMedicalRecords(
+            @RequestParam(required = false) Long patientId,
+            @RequestParam(required = false) Long doctorId) {
+        List<MedicalRecord> records;
+        if (patientId != null) {
+            records = medicalRecordService.getMedicalRecordsByPatientId(patientId);
+        } else if (doctorId != null) {
+            records = medicalRecordService.getMedicalRecordsByDoctorId(doctorId);
+        } else {
+            records = medicalRecordService.getAllMedicalRecords();
+        }
+        List<MedicalRecordDTO> dtos = records.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(records);
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")

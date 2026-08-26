@@ -11,6 +11,10 @@ public interface MedicalRecordService {
 
     List<MedicalRecord> getAllMedicalRecords();
 
+    List<MedicalRecord> getMedicalRecordsByPatientId(Long patientId);
+
+    List<MedicalRecord> getMedicalRecordsByDoctorId(Long doctorId);
+
     MedicalRecord updateMedicalRecord(Long id, MedicalRecord medicalRecord);
 
     void deleteMedicalRecord(Long id);

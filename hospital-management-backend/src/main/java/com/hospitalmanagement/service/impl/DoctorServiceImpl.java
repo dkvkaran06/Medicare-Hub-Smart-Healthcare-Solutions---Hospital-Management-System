@@ -1,6 +1,7 @@
 package com.hospitalmanagement.service.impl;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,11 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public List<Doctor> getAllDoctors() {
         return doctorRepository.findAll();
+    }
+
+    @Override
+    public Optional<Doctor> findByEmail(String email) {
+        return doctorRepository.findByEmail(email);
     }
 
     @Override

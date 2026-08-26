@@ -34,6 +34,11 @@ public class BillServiceImpl implements BillService {
     }
 
     @Override
+    public List<Bill> getBillsByPatientId(Long patientId) {
+        return billRepository.findByPatientId(patientId);
+    }
+
+    @Override
     public Bill updateBill(Long id, Bill bill) {
         Bill existingBill = getBillById(id);
         existingBill.setAmount(bill.getAmount());

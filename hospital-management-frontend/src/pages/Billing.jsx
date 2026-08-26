@@ -4,6 +4,7 @@ import {
   deleteBill,
   getAppointments,
   getBills,
+  getPatientByEmail,
   getPatients,
   updateBill
 } from '../api/hospitalApi';
@@ -51,6 +52,20 @@ export default function Billing() {
   }, [patients, user, isPatient]);
 
   const loadData = async () => {
+    // A patient pulls only their own bills + their own appointments (for the
+    // appointment labels) instead of every bill in the system. Admins get all.
+    if (isPatient) {
+      let myPat = null;
+      try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
+      const [billRes, aptRes] = await Promise.all([
+        myPat ? getBills({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
+        myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] })
+      ]);
+      setBills(billRes.data);
+      setPatients(myPat ? [myPat] : []);
+      setAppointments(aptRes.data);
+      return;
+    }
     const [billRes, patRes, aptRes] = await Promise.all([
       getBills(), getPatients(), getAppointments()
     ]);

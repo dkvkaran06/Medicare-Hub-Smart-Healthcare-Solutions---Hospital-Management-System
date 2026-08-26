@@ -11,6 +11,8 @@ public interface BillService {
 
     List<Bill> getAllBills();
 
+    List<Bill> getBillsByPatientId(Long patientId);
+
     Bill updateBill(Long id, Bill bill);
 
     void deleteBill(Long id);

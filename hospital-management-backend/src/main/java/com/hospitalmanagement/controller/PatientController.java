@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hospitalmanagement.dto.PatientDTO;
@@ -35,6 +36,14 @@ public class PatientController {
                 .map(this::toDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(patients);
+    }
+
+    @GetMapping("/by-email")
+    public ResponseEntity<PatientDTO> getPatientByEmail(@RequestParam String email) {
+        return patientService.findByEmail(email)
+                .map(this::toDto)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}")

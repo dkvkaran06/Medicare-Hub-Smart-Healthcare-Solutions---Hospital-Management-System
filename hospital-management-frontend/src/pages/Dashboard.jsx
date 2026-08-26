@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAppointments, getBills, getDoctors, getPatients } from '../api/hospitalApi';
+import { getAppointments, getBills, getDoctorByEmail, getDoctors, getPatientByEmail, getPatients } from '../api/hospitalApi';
 import { useAuth } from '../context/AuthContext';
 import StatCard from '../components/StatCard';
 
@@ -30,6 +30,37 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
+      // Each role pulls only the data it is allowed to see, scoped server-side.
+      if (isPatient) {
+        let myPat = null;
+        try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
+        const [appointmentsRes, billsRes, doctorsRes] = await Promise.all([
+          myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
+          myPat ? getBills({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
+          getDoctors(),
+        ]);
+        setPatients(myPat ? [myPat] : []);
+        setDoctors(doctorsRes.data);
+        setAllAppointments(appointmentsRes.data);
+        setAllBills(billsRes.data);
+        return;
+      }
+
+      if (isDoctor) {
+        let myDoc = null;
+        try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { myDoc = null; }
+        const [appointmentsRes, patientsRes, doctorsRes] = await Promise.all([
+          myDoc ? getAppointments({ doctorId: myDoc.id }) : Promise.resolve({ data: [] }),
+          getPatients(),
+          getDoctors(),
+        ]);
+        setPatients(patientsRes.data);
+        setDoctors(doctorsRes.data);
+        setAllAppointments(appointmentsRes.data);
+        setAllBills([]);
+        return;
+      }
+
       const [patientsRes, doctorsRes, appointmentsRes, billsRes] = await Promise.all([
         getPatients(),
         getDoctors(),

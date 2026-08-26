@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hospitalmanagement.dto.BillDTO;
@@ -34,11 +35,15 @@ public class BillController {
     private final AppointmentService appointmentService;
 
     @GetMapping
-    public ResponseEntity<List<BillDTO>> getAllBills() {
-        List<BillDTO> bills = billService.getAllBills().stream()
+    public ResponseEntity<List<BillDTO>> getAllBills(
+            @RequestParam(required = false) Long patientId) {
+        List<Bill> bills = (patientId != null)
+                ? billService.getBillsByPatientId(patientId)
+                : billService.getAllBills();
+        List<BillDTO> dtos = bills.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(bills);
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")

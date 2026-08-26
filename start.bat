@@ -6,6 +6,17 @@ echo   Hospital Management System - Starting...
 echo ============================================
 echo.
 
+:: Load local DB credentials (gitignored) so the backend can reach MySQL.
+:: Copy backend-local.env.example to backend-local.env and fill in your values.
+if exist "%~dp0backend-local.env" (
+  for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%~dp0backend-local.env") do set "%%a=%%b"
+  echo      [OK] Loaded DB credentials from backend-local.env
+) else (
+  echo      [!] backend-local.env not found - the backend may fail to reach MySQL.
+  echo          Copy backend-local.env.example to backend-local.env and fill it in.
+)
+echo.
+
 :: Start the Spring Boot backend in a new window
 echo [1/2] Starting Backend (Spring Boot on port 8080)...
 start "HMS Backend - Port 8080" cmd /k "cd /d "%~dp0hospital-management-backend" && mvn spring-boot:run"

@@ -3,7 +3,9 @@ import {
   createAppointment,
   deleteAppointment,
   getAppointments,
+  getDoctorByEmail,
   getDoctors,
+  getPatientByEmail,
   getPatients,
   updateAppointment
 } from '../api/hospitalApi';
@@ -56,6 +58,34 @@ export default function Appointments() {
   }, [doctors, user, isDoctor]);
 
   const loadData = async () => {
+    // Patients/doctors fetch ONLY their own appointments from the server
+    // (scoped by id) instead of downloading everyone's and filtering in the
+    // browser. Admins still get the full set.
+    if (isPatient) {
+      let myPat = null;
+      try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
+      const [aptRes, docRes] = await Promise.all([
+        myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
+        getDoctors()
+      ]);
+      setAppointments(aptRes.data);
+      setPatients(myPat ? [myPat] : []);
+      setDoctors(docRes.data);
+      return;
+    }
+    if (isDoctor) {
+      let myDoc = null;
+      try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { myDoc = null; }
+      const [aptRes, patRes, docRes] = await Promise.all([
+        myDoc ? getAppointments({ doctorId: myDoc.id }) : Promise.resolve({ data: [] }),
+        getPatients(),
+        getDoctors()
+      ]);
+      setAppointments(aptRes.data);
+      setPatients(patRes.data);
+      setDoctors(docRes.data);
+      return;
+    }
     const [aptRes, patRes, docRes] = await Promise.all([
       getAppointments(), getPatients(), getDoctors()
     ]);

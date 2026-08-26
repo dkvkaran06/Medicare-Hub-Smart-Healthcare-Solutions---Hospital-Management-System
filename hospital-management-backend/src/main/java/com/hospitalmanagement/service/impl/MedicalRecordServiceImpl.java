@@ -34,6 +34,16 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
+    public List<MedicalRecord> getMedicalRecordsByPatientId(Long patientId) {
+        return medicalRecordRepository.findByPatientId(patientId);
+    }
+
+    @Override
+    public List<MedicalRecord> getMedicalRecordsByDoctorId(Long doctorId) {
+        return medicalRecordRepository.findByDoctorId(doctorId);
+    }
+
+    @Override
     public MedicalRecord updateMedicalRecord(Long id, MedicalRecord medicalRecord) {
         MedicalRecord existingMedicalRecord = getMedicalRecordById(id);
         existingMedicalRecord.setDiagnosis(medicalRecord.getDiagnosis());
