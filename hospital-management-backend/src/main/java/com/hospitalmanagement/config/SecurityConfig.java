@@ -43,7 +43,7 @@ public class SecurityConfig {
                             response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()          // CORS preflight
-                .antMatchers("/api/auth/**", "/healthz", "/error").permitAll()
+                .antMatchers("/", "/favicon.ico", "/api/auth/**", "/healthz", "/error").permitAll()
 
                 // Departments: any signed-in user may read; only admins may modify.
                 .antMatchers(HttpMethod.GET, "/api/departments/**").authenticated()
