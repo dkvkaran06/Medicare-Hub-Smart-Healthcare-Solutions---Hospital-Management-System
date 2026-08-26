@@ -7,6 +7,7 @@ import javax.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hospitalmanagement.dto.PatientDTO;
 import com.hospitalmanagement.entity.Patient;
+import com.hospitalmanagement.security.SecurityUtils;
 import com.hospitalmanagement.service.PatientService;
 
 import lombok.RequiredArgsConstructor;
@@ -39,7 +41,12 @@ public class PatientController {
     }
 
     @GetMapping("/by-email")
-    public ResponseEntity<PatientDTO> getPatientByEmail(@RequestParam String email) {
+    public ResponseEntity<PatientDTO> getPatientByEmail(@RequestParam String email, Authentication authentication) {
+        // A patient may only look up their own record; admins and doctors may look up anyone.
+        if (SecurityUtils.isPatient(authentication)
+                && !email.equalsIgnoreCase(SecurityUtils.email(authentication))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return patientService.findByEmail(email)
                 .map(this::toDto)
                 .map(ResponseEntity::ok)
@@ -47,7 +54,17 @@ public class PatientController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PatientDTO> getPatientById(@PathVariable Long id) {
+    public ResponseEntity<PatientDTO> getPatientById(@PathVariable Long id, Authentication authentication) {
+        // A patient may only read their own record (resolved from their email);
+        // admins and doctors may read any.
+        if (SecurityUtils.isPatient(authentication)) {
+            Long ownId = patientService.findByEmail(SecurityUtils.email(authentication))
+                    .map(Patient::getId)
+                    .orElse(-1L);
+            if (!ownId.equals(id)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
         return ResponseEntity.ok(toDto(patientService.getPatientById(id)));
     }
 

@@ -7,6 +7,7 @@ import javax.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hospitalmanagement.dto.BillDTO;
 import com.hospitalmanagement.entity.Bill;
+import com.hospitalmanagement.security.SecurityUtils;
 import com.hospitalmanagement.service.AppointmentService;
 import com.hospitalmanagement.service.BillService;
 import com.hospitalmanagement.service.PatientService;
@@ -36,7 +38,16 @@ public class BillController {
 
     @GetMapping
     public ResponseEntity<List<BillDTO>> getAllBills(
-            @RequestParam(required = false) Long patientId) {
+            @RequestParam(required = false) Long patientId,
+            Authentication authentication) {
+        // Non-admins may only see their own bills. A patient resolves to their own
+        // patient id; any other non-admin role gets an intentionally empty result.
+        if (!SecurityUtils.isAdmin(authentication)) {
+            patientId = SecurityUtils.isPatient(authentication)
+                    ? patientService.findByEmail(SecurityUtils.email(authentication))
+                            .map(p -> p.getId()).orElse(-1L)
+                    : -1L;
+        }
         List<Bill> bills = (patientId != null)
                 ? billService.getBillsByPatientId(patientId)
                 : billService.getAllBills();
@@ -47,8 +58,18 @@ public class BillController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BillDTO> getBillById(@PathVariable Long id) {
-        return ResponseEntity.ok(toDto(billService.getBillById(id)));
+    public ResponseEntity<BillDTO> getBillById(@PathVariable Long id, Authentication authentication) {
+        Bill bill = billService.getBillById(id);
+        if (!SecurityUtils.isAdmin(authentication)) {
+            Long ownId = SecurityUtils.isPatient(authentication)
+                    ? patientService.findByEmail(SecurityUtils.email(authentication))
+                            .map(p -> p.getId()).orElse(-1L)
+                    : -1L;
+            if (bill.getPatient() == null || !ownId.equals(bill.getPatient().getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+        return ResponseEntity.ok(toDto(bill));
     }
 
     @PostMapping
