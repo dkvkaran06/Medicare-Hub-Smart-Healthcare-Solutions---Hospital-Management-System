@@ -410,6 +410,105 @@ img {
   text-align: center;
 }
 
+/* ─── Field-level hints (email validation) ─── */
+.field-hint {
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.field-hint--error {
+  color: var(--color-danger);
+}
+
+.field-hint--success {
+  color: var(--color-success);
+}
+
+.form-group input.input-error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+/* ─── Password Strength Meter ─── */
+.pw-strength-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pw-strength-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pw-strength-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.35s ease, background 0.35s ease;
+}
+
+.pw-strength-bar-fill.pw-weak {
+  background: linear-gradient(90deg, #DC2626, #EF4444);
+}
+
+.pw-strength-bar-fill.pw-fair {
+  background: linear-gradient(90deg, #F97316, #F59E0B);
+}
+
+.pw-strength-bar-fill.pw-good {
+  background: linear-gradient(90deg, #22C55E, #4ADE80);
+}
+
+.pw-strength-bar-fill.pw-strong {
+  background: linear-gradient(90deg, #16A34A, #22C55E);
+}
+
+.pw-strength-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ─── Password Rules Checklist ─── */
+.pw-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pw-checklist li {
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.pw-rule-icon {
+  font-size: 0.7rem;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.pw-rule-pass {
+  color: var(--color-success);
+}
+
+.pw-rule-fail {
+  color: var(--color-text-muted);
+}
+
 /* ─── App Shell (Sidebar Layout) ─── */
 .app-shell {
   display: grid;
