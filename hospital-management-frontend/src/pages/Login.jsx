@@ -32,17 +32,12 @@ export default function Login() {
 
     setLoading(true);
 
-    // Optimistic navigation: go to dashboard immediately while the login
-    // request runs in parallel. If credentials are wrong, navigate back.
-    navigate('/dashboard');
-
     try {
       const response = await loginUser({ email, password });
-      login(response.data);
+      login(response.data);       // save user to context/localStorage
+      navigate('/dashboard');     // only navigate AFTER successful login
     } catch (err) {
-      // Credentials rejected — come back to login and show the error.
-      navigate('/login');
-      const message = err.response?.data?.error || 'Login failed. Please try again.';
+      const message = err.response?.data?.error || 'Login failed. Please check your credentials.';
       setError(message);
     } finally {
       setLoading(false);
