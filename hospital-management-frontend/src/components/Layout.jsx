@@ -237,9 +237,6 @@ export default function Layout() {
           triggerRef.current && !triggerRef.current.contains(e.target)) {
         setShowCalendar(false);
       }
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false);
-      }
       if (notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotif(false);
       }
@@ -373,7 +370,12 @@ export default function Layout() {
               </div>
               
               {showDropdown && (
-                <div className="avatar-dropdown">
+                <>
+                  <div 
+                    style={{ position: 'fixed', inset: 0, zIndex: 99 }} 
+                    onClick={() => setShowDropdown(false)}
+                  />
+                  <div className="avatar-dropdown" style={{ zIndex: 100, position: 'absolute' }}>
                   <Link 
                     to="/settings" 
                     className="avatar-dropdown-item" 
@@ -396,6 +398,7 @@ export default function Layout() {
                     Log Out
                   </button>
                 </div>
+                </>
               )}
             </div>
           </div>
