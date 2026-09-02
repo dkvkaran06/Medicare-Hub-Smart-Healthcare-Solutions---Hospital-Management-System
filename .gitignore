@@ -6,3 +6,5 @@ backend-local.env
 target/
 *.log
 .vscode/
+
+.vercel
