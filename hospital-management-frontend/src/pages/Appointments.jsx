@@ -1,30 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  createAppointment,
-  deleteAppointment,
-  getAppointments,
-  getDoctorByEmail,
-  getDoctors,
-  getPatientByEmail,
-  getPatients,
-  updateAppointment
+  createAppointment, deleteAppointment, getAppointments,
+  getDoctorByEmail, getDoctors, getPatientByEmail, getPatients, updateAppointment
 } from '../api/hospitalApi';
+import { cachedFetch, invalidate } from '../api/cache';
 import { useAuth } from '../context/AuthContext';
 
-const emptyForm = {
-  id: null,
-  appointmentDate: '',
-  appointmentTime: '',
-  status: 'SCHEDULED',
-  patientId: '',
-  doctorId: ''
-};
+const emptyForm = { id: null, appointmentDate: '', appointmentTime: '', status: 'SCHEDULED', patientId: '', doctorId: '' };
+
+function SkeletonRow({ cols }) {
+  return (
+    <tr>
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i}>
+          <div style={{
+            height: '14px', borderRadius: '6px',
+            background: 'linear-gradient(90deg, #1e293b 25%, #273548 50%, #1e293b 75%)',
+            backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', width: i === 0 ? '60%' : '85%'
+          }} />
+        </td>
+      ))}
+    </tr>
+  );
+}
 
 export default function Appointments() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('error');
@@ -36,15 +41,9 @@ export default function Appointments() {
   const isDoctor = user?.role === 'doctor';
   const isPatient = user?.role === 'patient';
 
-  const patientNameById = useMemo(() => {
-    return patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {});
-  }, [patients]);
+  const patientNameById = useMemo(() => patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {}), [patients]);
+  const doctorNameById = useMemo(() => doctors.reduce((acc, d) => { acc[d.id] = d.name; return acc; }, {}), [doctors]);
 
-  const doctorNameById = useMemo(() => {
-    return doctors.reduce((acc, d) => { acc[d.id] = d.name; return acc; }, {});
-  }, [doctors]);
-
-  // Find the logged-in user's linked patient/doctor record by email
   const myPatientId = useMemo(() => {
     if (!isPatient) return null;
     const match = patients.find((p) => p.email === user?.email);
@@ -57,117 +56,70 @@ export default function Appointments() {
     return match ? match.id : null;
   }, [doctors, user, isDoctor]);
 
-  const loadData = async () => {
-    // Patients/doctors fetch ONLY their own appointments from the server
-    // (scoped by id) instead of downloading everyone's and filtering in the
-    // browser. Admins still get the full set.
+  const loadData = async (bustCache = false) => {
+    if (bustCache) { invalidate('appointments'); invalidate('patients'); invalidate('doctors'); }
+
     if (isPatient) {
       let myPat = null;
       try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
       const [aptRes, docRes] = await Promise.all([
         myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
-        getDoctors()
+        cachedFetch('doctors', getDoctors, setDoctors) ?? Promise.resolve()
       ]);
-      setAppointments(aptRes.data);
+      if (aptRes) setAppointments(aptRes.data);
       setPatients(myPat ? [myPat] : []);
-      setDoctors(docRes.data);
+      setLoading(false);
       return;
     }
     if (isDoctor) {
       let myDoc = null;
       try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { myDoc = null; }
-      const [aptRes, patRes, docRes] = await Promise.all([
+      const [aptRes] = await Promise.all([
         myDoc ? getAppointments({ doctorId: myDoc.id }) : Promise.resolve({ data: [] }),
-        getPatients(),
-        getDoctors()
+        cachedFetch('patients', getPatients, setPatients),
+        cachedFetch('doctors', getDoctors, setDoctors),
       ]);
-      setAppointments(aptRes.data);
-      setPatients(patRes.data);
-      setDoctors(docRes.data);
+      if (aptRes) setAppointments(aptRes.data);
+      setLoading(false);
       return;
     }
-    const [aptRes, patRes, docRes] = await Promise.all([
-      getAppointments(), getPatients(), getDoctors()
+    await Promise.all([
+      cachedFetch('appointments', getAppointments, (d) => { setAppointments(d); setLoading(false); }),
+      cachedFetch('patients', getPatients, setPatients),
+      cachedFetch('doctors', getDoctors, setDoctors),
     ]);
-    setAppointments(aptRes.data);
-    setPatients(patRes.data);
-    setDoctors(docRes.data);
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadData().catch(() => showMessage('Failed to load appointments', 'error'));
+    loadData().catch(() => { showMessage('Failed to load appointments', 'error'); setLoading(false); });
   }, []);
 
-  const showMessage = (msg, type = 'error') => {
-    setMessage(msg);
-    setMessageType(type);
-    setTimeout(() => setMessage(''), 4000);
-  };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((curr) => ({ ...curr, [name]: value }));
-  };
-
-  const resetForm = () => {
-    setForm(emptyForm);
-    setShowForm(false);
-  };
+  const showMessage = (msg, type = 'error') => { setMessage(msg); setMessageType(type); setTimeout(() => setMessage(''), 4000); };
+  const handleChange = (e) => setForm((c) => ({ ...c, [e.target.name]: e.target.value }));
+  const resetForm = () => { setForm(emptyForm); setShowForm(false); };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const payload = {
-      ...form,
-      patientId: Number(form.patientId),
-      doctorId: Number(form.doctorId)
-    };
-
+    const payload = { ...form, patientId: Number(form.patientId), doctorId: Number(form.doctorId) };
     try {
-      if (form.id) {
-        await updateAppointment(form.id, payload);
-        showMessage('Appointment updated successfully', 'success');
-      } else {
-        await createAppointment(payload);
-        showMessage('Appointment created successfully', 'success');
-      }
-      resetForm();
-      await loadData();
-    } catch (error) {
-      showMessage(error.response?.data?.message || 'Failed to save appointment', 'error');
-    }
+      if (form.id) { await updateAppointment(form.id, payload); showMessage('Appointment updated successfully', 'success'); }
+      else { await createAppointment(payload); showMessage('Appointment created successfully', 'success'); }
+      resetForm(); await loadData(true);
+    } catch (error) { showMessage(error.response?.data?.message || 'Failed to save appointment', 'error'); }
   };
 
-  const handleEdit = (apt) => {
-    setForm({
-      ...apt,
-      patientId: apt.patientId ? String(apt.patientId) : '',
-      doctorId: apt.doctorId ? String(apt.doctorId) : ''
-    });
-    setShowForm(true);
-  };
-
+  const handleEdit = (apt) => { setForm({ ...apt, patientId: apt.patientId ? String(apt.patientId) : '', doctorId: apt.doctorId ? String(apt.doctorId) : '' }); setShowForm(true); };
   const handleDelete = async (id) => {
-    try {
-      await deleteAppointment(id);
-      showMessage('Appointment deleted successfully', 'success');
-      await loadData();
-    } catch (error) {
-      showMessage(error.response?.data?.message || 'Failed to delete appointment', 'error');
-    }
+    try { await deleteAppointment(id); showMessage('Appointment deleted successfully', 'success'); await loadData(true); }
+    catch (error) { showMessage(error.response?.data?.message || 'Failed to delete appointment', 'error'); }
   };
 
-  const getStatusClass = (status) => {
-    if (!status) return '';
-    return status.toLowerCase();
-  };
+  const getStatusClass = (s) => s?.toLowerCase() || '';
 
-  // Role-based filtering
   const filtered = appointments.filter((apt) => {
-    // Patient sees only their own appointments (no linked record => see nothing)
     if (isPatient && apt.patientId !== myPatientId) return false;
-    // Doctor sees only their own appointments (no linked record => see nothing)
     if (isDoctor && apt.doctorId !== myDoctorId) return false;
-    // Admin sees all — apply user filters
     if (filterDate && apt.appointmentDate !== filterDate) return false;
     if (filterDoctor && String(apt.doctorId) !== filterDoctor) return false;
     return true;
@@ -176,27 +128,22 @@ export default function Appointments() {
   const canAdd = isAdmin;
   const canEdit = isAdmin || isDoctor;
   const canDelete = isAdmin;
+  const colCount = canEdit || canDelete ? 7 : 6;
 
   return (
     <div className="page-content">
       <div className="page-header">
         <div className="page-header-left">
           <button className="btn-back" onClick={() => window.history.back()}>← Back</button>
-          <h2 className="page-title">
-            {isPatient ? 'My Appointments' : isDoctor ? 'My Schedule' : 'Schedule Manager'}
-          </h2>
+          <h2 className="page-title">{isPatient ? 'My Appointments' : isDoctor ? 'My Schedule' : 'Schedule Manager'}</h2>
         </div>
-        {canAdd && (
-          <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Appointment</button>
-        )}
+        {canAdd && <button className="btn-add-new" onClick={() => setShowForm(true)}>+ Add Appointment</button>}
       </div>
 
       {message && <div className={`error-banner ${messageType}`}>{message}</div>}
 
       <div className="page-card">
-        <div className="table-section-title">
-          {isPatient ? 'My' : isDoctor ? 'My' : 'All'} Appointments ({filtered.length})
-        </div>
+        <div className="table-section-title">{isPatient ? 'My' : isDoctor ? 'My' : 'All'} Appointments ({filtered.length})</div>
 
         {isAdmin && (
           <div className="filter-row">
@@ -205,13 +152,9 @@ export default function Appointments() {
             <label>Doctor:</label>
             <select value={filterDoctor} onChange={(e) => setFilterDoctor(e.target.value)}>
               <option value="">Choose Doctor Name from the list</option>
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
+              {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
-            <button className="btn-filter" onClick={() => { setFilterDate(''); setFilterDoctor(''); }}>
-              ⟲ Clear
-            </button>
+            <button className="btn-filter" onClick={() => { setFilterDate(''); setFilterDoctor(''); }}>⟲ Clear</button>
           </div>
         )}
 
@@ -219,36 +162,34 @@ export default function Appointments() {
           <table>
             <thead>
               <tr>
-                <th>Apt. No</th>
-                <th>Patient Name</th>
-                <th>Doctor</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
+                <th>Apt. No</th><th>Patient Name</th><th>Doctor</th><th>Date</th><th>Time</th><th>Status</th>
                 {(canEdit || canDelete) && <th>Events</th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((apt) => (
-                <tr key={apt.id}>
-                  <td>{apt.id}</td>
-                  <td>{patientNameById[apt.patientId] || apt.patientId}</td>
-                  <td>{doctorNameById[apt.doctorId] || apt.doctorId}</td>
-                  <td>{apt.appointmentDate}</td>
-                  <td>{apt.appointmentTime}</td>
-                  <td><span className={`status-pill ${getStatusClass(apt.status)}`}>{apt.status}</span></td>
-                  {(canEdit || canDelete) && (
-                    <td>
-                      <div className="action-btns">
-                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(apt)}>✏ Edit</button>}
-                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(apt.id)}>🗑 Remove</button>}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={canEdit || canDelete ? "7" : "6"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No appointments found</td></tr>
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={colCount} />)
+                : filtered.map((apt) => (
+                    <tr key={apt.id}>
+                      <td>{apt.id}</td>
+                      <td>{patientNameById[apt.patientId] || apt.patientId}</td>
+                      <td>{doctorNameById[apt.doctorId] || apt.doctorId}</td>
+                      <td>{apt.appointmentDate}</td>
+                      <td>{apt.appointmentTime}</td>
+                      <td><span className={`status-pill ${getStatusClass(apt.status)}`}>{apt.status}</span></td>
+                      {(canEdit || canDelete) && (
+                        <td>
+                          <div className="action-btns">
+                            {canEdit && <button className="btn-edit" onClick={() => handleEdit(apt)}>✏ Edit</button>}
+                            {canDelete && <button className="btn-delete" onClick={() => handleDelete(apt.id)}>🗑 Remove</button>}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+              }
+              {!loading && filtered.length === 0 && (
+                <tr><td colSpan={colCount} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No appointments found</td></tr>
               )}
             </tbody>
           </table>
@@ -270,15 +211,11 @@ export default function Appointments() {
                 </select>
                 <select name="patientId" value={form.patientId} onChange={handleChange} required>
                   <option value="">Select Patient</option>
-                  {patients.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
+                  {patients.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <select name="doctorId" value={form.doctorId} onChange={handleChange} required className="full-width">
                   <option value="">Select Doctor</option>
-                  {doctors.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
+                  {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div className="button-row">
