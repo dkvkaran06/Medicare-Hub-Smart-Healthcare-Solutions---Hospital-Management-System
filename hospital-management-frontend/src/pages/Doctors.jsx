@@ -7,6 +7,7 @@ import {
   getDoctors,
   updateDoctor
 } from '../api/hospitalApi';
+import { cachedFetch, invalidate } from '../api/cache';
 import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
@@ -18,11 +19,31 @@ const emptyForm = {
   departmentId: ''
 };
 
+// Skeleton row shown while data loads
+function SkeletonRow({ cols }) {
+  return (
+    <tr>
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i}>
+          <div style={{
+            height: '14px', borderRadius: '6px',
+            background: 'linear-gradient(90deg, #1e293b 25%, #273548 50%, #1e293b 75%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1.4s infinite',
+            width: i === 0 ? '70%' : '90%'
+          }} />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export default function Doctors() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('error');
@@ -44,14 +65,20 @@ export default function Doctors() {
     }, {});
   }, [departments]);
 
-  const loadData = async () => {
-    const [doctorRes, deptRes] = await Promise.all([getDoctors(), getDepartments()]);
-    setDoctors(doctorRes.data);
-    setDepartments(deptRes.data);
+  const loadData = async (bustCache = false) => {
+    if (bustCache) {
+      invalidate('doctors');
+      invalidate('departments');
+    }
+    await Promise.all([
+      cachedFetch('doctors', getDoctors, (d) => { setDoctors(d); setLoading(false); }),
+      cachedFetch('departments', getDepartments, setDepartments),
+    ]);
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadData().catch(() => showMessage('Failed to load doctors', 'error'));
+    loadData().catch(() => { showMessage('Failed to load doctors', 'error'); setLoading(false); });
   }, []);
 
   const showMessage = (msg, type = 'error') => {
@@ -83,7 +110,7 @@ export default function Doctors() {
         showMessage('Doctor created successfully', 'success');
       }
       resetForm();
-      await loadData();
+      await loadData(true);
     } catch (error) {
       showMessage(error.response?.data?.message || 'Failed to save doctor', 'error');
     }
@@ -98,7 +125,7 @@ export default function Doctors() {
     try {
       await deleteDoctor(id);
       showMessage('Doctor deleted successfully', 'success');
-      await loadData();
+      await loadData(true);
     } catch (error) {
       showMessage(error.response?.data?.message || 'Failed to delete doctor', 'error');
     }
@@ -152,23 +179,28 @@ export default function Doctors() {
               </tr>
             </thead>
             <tbody>
-              {filteredDoctors.map((doctor) => (
-                <tr key={doctor.id}>
-                  <td>{doctor.name}</td>
-                  <td>{doctor.email}</td>
-                  <td>{doctor.specialization}</td>
-                  <td>{departmentNameById[doctor.departmentId] || doctor.departmentId}</td>
-                  {(canEdit || canDelete) && (
-                    <td>
-                      <div className="action-btns">
-                        {canEdit && <button className="btn-edit" onClick={() => handleEdit(doctor)}>✏ Edit</button>}
-                        {canDelete && <button className="btn-delete" onClick={() => handleDelete(doctor.id)}>🗑 Remove</button>}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filteredDoctors.length === 0 && (
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonRow key={i} cols={canEdit || canDelete ? 5 : 4} />
+                  ))
+                : filteredDoctors.map((doctor) => (
+                    <tr key={doctor.id}>
+                      <td>{doctor.name}</td>
+                      <td>{doctor.email}</td>
+                      <td>{doctor.specialization}</td>
+                      <td>{departmentNameById[doctor.departmentId] || doctor.departmentId}</td>
+                      {(canEdit || canDelete) && (
+                        <td>
+                          <div className="action-btns">
+                            {canEdit && <button className="btn-edit" onClick={() => handleEdit(doctor)}>✏ Edit</button>}
+                            {canDelete && <button className="btn-delete" onClick={() => handleDelete(doctor.id)}>🗑 Remove</button>}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+              }
+              {!loading && filteredDoctors.length === 0 && (
                 <tr><td colSpan={canEdit || canDelete ? "5" : "4"} style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No doctors found</td></tr>
               )}
             </tbody>
