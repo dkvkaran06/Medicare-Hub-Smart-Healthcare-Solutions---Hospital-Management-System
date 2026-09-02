@@ -149,7 +149,7 @@ export default function Layout() {
             />
             <button className="btn-search" onClick={handleSearch}>Search</button>
           </div>
-          <div className="topbar-date">
+          <div className="topbar-date" onClick={() => navigate('/appointments')} title="View today's appointments" style={{ cursor: 'pointer' }}>
             <div>
               <div className="date-label">Today's Date</div>
               <div className="date-value">{getToday()}</div>
