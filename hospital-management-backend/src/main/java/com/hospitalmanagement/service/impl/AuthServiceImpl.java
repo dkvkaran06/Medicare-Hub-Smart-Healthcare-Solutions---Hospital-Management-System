@@ -9,7 +9,13 @@ import org.springframework.stereotype.Service;
 
 import com.hospitalmanagement.entity.User;
 import com.hospitalmanagement.entity.UserRole;
+import com.hospitalmanagement.entity.Patient;
+import com.hospitalmanagement.entity.Doctor;
+import com.hospitalmanagement.entity.Department;
 import com.hospitalmanagement.repository.UserRepository;
+import com.hospitalmanagement.repository.PatientRepository;
+import com.hospitalmanagement.repository.DoctorRepository;
+import com.hospitalmanagement.repository.DepartmentRepository;
 import com.hospitalmanagement.security.JwtService;
 import com.hospitalmanagement.service.AuthService;
 
@@ -19,17 +25,33 @@ public class AuthServiceImpl implements AuthService {
     private static final int MAX_ADMINS = 5;
 
     private final UserRepository userRepository;
+    private final PatientRepository patientRepository;
+    private final DoctorRepository doctorRepository;
+    private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthServiceImpl(UserRepository userRepository, 
+                           PatientRepository patientRepository,
+                           DoctorRepository doctorRepository,
+                           DepartmentRepository departmentRepository,
+                           PasswordEncoder passwordEncoder, 
+                           JwtService jwtService) {
         this.userRepository = userRepository;
+        this.patientRepository = patientRepository;
+        this.doctorRepository = doctorRepository;
+        this.departmentRepository = departmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
 
     @Override
-    public Map<String, Object> register(String name, String email, String password, String role) {
+    public Map<String, Object> register(Map<String, String> request) {
+        String name = request.get("name");
+        String email = request.get("email");
+        String password = request.get("password");
+        String role = request.get("role");
+
         // Check if email is already registered
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("This email is already registered. One account per email is allowed.");
@@ -61,6 +83,33 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
+
+        // Auto-create Patient or Doctor profile
+        if (userRole == UserRole.PATIENT) {
+            Patient patient = Patient.builder()
+                    .name(name)
+                    .email(email)
+                    .age(request.get("age") != null && !request.get("age").isEmpty() ? Integer.parseInt(request.get("age")) : 0)
+                    .gender(request.getOrDefault("gender", "Unknown"))
+                    .phone(request.getOrDefault("phone", ""))
+                    .address(request.getOrDefault("address", ""))
+                    .bloodGroup(request.getOrDefault("bloodGroup", ""))
+                    .build();
+            patientRepository.save(patient);
+        } else if (userRole == UserRole.DOCTOR) {
+            Doctor doctor = Doctor.builder()
+                    .name(name)
+                    .email(email)
+                    .phone(request.getOrDefault("phone", ""))
+                    .specialization(request.getOrDefault("specialization", ""))
+                    .build();
+            
+            String deptIdStr = request.get("departmentId");
+            if (deptIdStr != null && !deptIdStr.isEmpty()) {
+                departmentRepository.findById(Long.parseLong(deptIdStr)).ifPresent(doctor::setDepartment);
+            }
+            doctorRepository.save(doctor);
+        }
 
         return buildUserResponse(savedUser);
     }

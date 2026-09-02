@@ -34,7 +34,7 @@ public class AuthController {
                         .body(Map.of("error", "Name, email, password, and role are required."));
             }
 
-            Map<String, Object> user = authService.register(name, email, password, role);
+            Map<String, Object> user = authService.register(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(user);
 
         } catch (RuntimeException e) {

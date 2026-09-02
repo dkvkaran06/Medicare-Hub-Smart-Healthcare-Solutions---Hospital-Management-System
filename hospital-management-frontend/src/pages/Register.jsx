@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { registerUser } from '../api/hospitalApi';
+import { registerUser, getDepartments } from '../api/hospitalApi';
+import { useEffect } from 'react';
 
 /* ── Password-strength helpers ── */
 const PASSWORD_RULES = [
@@ -39,8 +40,25 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
+  
+  // Patient fields
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+
+  // Doctor fields
+  const [specialization, setSpecialization] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [departments, setDepartments] = useState([]);
+
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getDepartments().then(res => setDepartments(res.data)).catch(() => {});
+  }, []);
 
   /* Live password strength */
   const strength = useMemo(() => getStrength(password), [password]);
@@ -68,7 +86,13 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const response = await registerUser({ name, email, password, role });
+      const payload = { name, email, password, role };
+      if (role === 'patient') {
+        Object.assign(payload, { age, gender, phone, address, bloodGroup });
+      } else if (role === 'doctor') {
+        Object.assign(payload, { phone, specialization, departmentId });
+      }
+      const response = await registerUser(payload);
       login(response.data);
       navigate('/dashboard');
     } catch (err) {
@@ -175,6 +199,58 @@ export default function Register() {
               <option value="admin">Administrator</option>
             </select>
           </div>
+
+          {/* ── Conditional Fields ── */}
+          {role === 'patient' && (
+            <>
+              <div className="form-group">
+                <label>Age:</label>
+                <input type="number" placeholder="Your Age" value={age} onChange={(e) => setAge(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Gender:</label>
+                <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Phone:</label>
+                <input type="text" placeholder="Your Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Address:</label>
+                <input type="text" placeholder="Your Address" value={address} onChange={(e) => setAddress(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Blood Group:</label>
+                <input type="text" placeholder="e.g. O+, A-, B+" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)} required />
+              </div>
+            </>
+          )}
+
+          {role === 'doctor' && (
+            <>
+              <div className="form-group">
+                <label>Phone:</label>
+                <input type="text" placeholder="Your Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Specialization:</label>
+                <input type="text" placeholder="e.g. Cardiologist" value={specialization} onChange={(e) => setSpecialization(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Department:</label>
+                <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required>
+                  <option value="">Select a Department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           <button
             type="submit"
