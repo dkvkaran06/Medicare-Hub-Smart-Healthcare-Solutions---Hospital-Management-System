@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../api/hospitalApi';
+import client from '../api/client';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Pre-warm: silently ping the backend the moment this page loads.
+  // By the time the user types credentials and clicks Login, the Render
+  // server is already awake and the TCP connection is established —
+  // making the actual login request feel near-instant.
+  useEffect(() => {
+    const base = (import.meta.env.VITE_API_URL || 'https://medicare-hub-backend-ntpd.onrender.com/api').replace('/api', '');
+    fetch(`${base}/healthz`).catch(() => {/* ignore — fire-and-forget */});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,11 +31,17 @@ export default function Login() {
     }
 
     setLoading(true);
+
+    // Optimistic navigation: go to dashboard immediately while the login
+    // request runs in parallel. If credentials are wrong, navigate back.
+    navigate('/dashboard');
+
     try {
       const response = await loginUser({ email, password });
       login(response.data);
-      navigate('/dashboard');
     } catch (err) {
+      // Credentials rejected — come back to login and show the error.
+      navigate('/login');
       const message = err.response?.data?.error || 'Login failed. Please try again.';
       setError(message);
     } finally {
