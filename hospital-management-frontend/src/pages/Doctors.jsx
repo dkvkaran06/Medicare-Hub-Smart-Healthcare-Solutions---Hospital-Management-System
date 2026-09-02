@@ -27,7 +27,7 @@ function SkeletonRow({ cols }) {
         <td key={i}>
           <div style={{
             height: '14px', borderRadius: '6px',
-            background: 'linear-gradient(90deg, #E0F2FE 25%, #BAE6FD 50%, #E0F2FE 75%)',
+            background: 'linear-gradient(90deg, #1e293b 25%, #273548 50%, #1e293b 75%)',
             backgroundSize: '200% 100%',
             animation: 'shimmer 1.4s infinite',
             width: i === 0 ? '70%' : '90%'
