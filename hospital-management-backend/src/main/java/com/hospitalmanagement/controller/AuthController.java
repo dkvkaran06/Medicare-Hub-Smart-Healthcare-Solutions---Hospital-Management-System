@@ -62,4 +62,43 @@ public class AuthController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    @org.springframework.web.bind.annotation.GetMapping("/me")
+    public ResponseEntity<?> getMe(java.security.Principal principal) {
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+            }
+            Map<String, Object> user = authService.me(principal.getName());
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/me")
+    public ResponseEntity<?> updateMe(java.security.Principal principal, @RequestBody Map<String, String> request) {
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+            }
+            Map<String, Object> user = authService.updateMe(principal.getName(), request);
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/me")
+    public ResponseEntity<?> deleteMe(java.security.Principal principal) {
+        try {
+            if (principal == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+            }
+            authService.deleteMe(principal.getName());
+            return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

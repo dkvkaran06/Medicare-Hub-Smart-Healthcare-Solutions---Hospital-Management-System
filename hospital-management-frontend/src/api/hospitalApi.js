@@ -1,8 +1,11 @@
 import client from './client';
 
-// Auth
-export const registerUser = (payload) => client.post('/auth/register', payload);
-export const loginUser = (payload) => client.post('/auth/login', payload);
+// Auth & Users
+export const registerUser = (userData) => client.post('/auth/register', userData);
+export const loginUser = (credentials) => client.post('/auth/login', credentials);
+export const getMe = () => client.get('/auth/me');
+export const updateMe = (data) => client.put('/auth/me', data);
+export const deleteMe = () => client.delete('/auth/me');
 
 export const getPatients = () => client.get('/patients');
 export const getPatientById = (id) => client.get(`/patients/${id}`);

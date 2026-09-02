@@ -155,4 +155,61 @@ public class AuthServiceImpl implements AuthService {
         response.put("token", jwtService.generateToken(user.getEmail(), user.getRole().name()));
         return response;
     }
+    @Override
+    public Map<String, Object> me(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return buildUserResponse(user);
+    }
+
+    @Override
+    public Map<String, Object> updateMe(String email, Map<String, String> request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (request.containsKey("name") && !request.get("name").isEmpty()) {
+            user.setName(request.get("name"));
+            // Also update the name in Patient or Doctor profile
+            if (user.getRole() == UserRole.PATIENT) {
+                patientRepository.findByEmail(email).ifPresent(p -> {
+                    p.setName(request.get("name"));
+                    patientRepository.save(p);
+                });
+            } else if (user.getRole() == UserRole.DOCTOR) {
+                doctorRepository.findByEmail(email).ifPresent(d -> {
+                    d.setName(request.get("name"));
+                    doctorRepository.save(d);
+                });
+            }
+        }
+
+        if (request.containsKey("newPassword") && !request.get("newPassword").isEmpty()) {
+            String oldPassword = request.get("oldPassword");
+            String stored = user.getPassword();
+            boolean looksHashed = stored != null && (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$"));
+            boolean matches = looksHashed ? passwordEncoder.matches(oldPassword, stored) : (stored != null && stored.equals(oldPassword));
+            
+            if (!matches) {
+                throw new RuntimeException("Incorrect old password.");
+            }
+            user.setPassword(passwordEncoder.encode(request.get("newPassword")));
+        }
+
+        User savedUser = userRepository.save(user);
+        return buildUserResponse(savedUser);
+    }
+
+    @Override
+    public void deleteMe(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (user.getRole() == UserRole.PATIENT) {
+            patientRepository.findByEmail(email).ifPresent(patientRepository::delete);
+        } else if (user.getRole() == UserRole.DOCTOR) {
+            doctorRepository.findByEmail(email).ifPresent(doctorRepository::delete);
+        }
+        
+        userRepository.delete(user);
+    }
 }
