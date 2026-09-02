@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { invalidateAll } from '../api/cache';
 
 const AuthContext = createContext(null);
 
@@ -23,10 +24,12 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const login = (userData) => {
+    invalidateAll();
     setUser(userData);
   };
 
   const logout = () => {
+    invalidateAll();
     setUser(null);
   };
 
