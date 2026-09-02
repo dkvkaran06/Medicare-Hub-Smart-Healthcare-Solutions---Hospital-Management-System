@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const adminLinks = [
