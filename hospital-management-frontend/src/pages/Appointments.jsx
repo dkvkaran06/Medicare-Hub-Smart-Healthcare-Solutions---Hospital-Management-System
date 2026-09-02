@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   createAppointment, deleteAppointment, getAppointments,
   getDoctorByEmail, getDoctors, getPatientByEmail, getPatients, updateAppointment
@@ -40,6 +41,13 @@ export default function Appointments() {
   const isAdmin = user?.role === 'admin';
   const isDoctor = user?.role === 'doctor';
   const isPatient = user?.role === 'patient';
+  const [searchParams] = useSearchParams();
+
+  // Pre-fill date filter from URL param (set by mini calendar in topbar)
+  useEffect(() => {
+    const d = searchParams.get('date');
+    if (d) setFilterDate(d);
+  }, [searchParams]);
 
   const patientNameById = useMemo(() => patients.reduce((acc, p) => { acc[p.id] = p.name; return acc; }, {}), [patients]);
   const doctorNameById = useMemo(() => doctors.reduce((acc, d) => { acc[d.id] = d.name; return acc; }, {}), [doctors]);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -76,31 +76,130 @@ function getNavIcon(icon) {
 }
 
 function getToday() {
-  const d = new Date();
-  return d.toISOString().split('T')[0];
+  return new Date().toISOString().split('T')[0];
+}
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+function MiniCalendar({ onSelect, onClose }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const todayStr = getToday();
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <div style={{
+      position: 'absolute', top: '110%', right: 0, zIndex: 200,
+      background: '#fff', border: '1px solid #BAE6FD',
+      borderRadius: '12px', boxShadow: '0 8px 32px rgba(14,165,233,0.15)',
+      padding: '16px', width: '260px',
+      animation: 'slideUp 0.2s ease'
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#0EA5E9', padding: '2px 8px' }}>‹</button>
+        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0F172A' }}>{MONTHS[viewMonth]} {viewYear}</span>
+        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#0EA5E9', padding: '2px 8px' }}>›</button>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+        {DAYS.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 600, color: '#94A3B8', padding: '2px' }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Date cells */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e-${i}`} />;
+          const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const isToday = dateStr === todayStr;
+          return (
+            <button
+              key={dateStr}
+              onClick={() => { onSelect(dateStr); onClose(); }}
+              style={{
+                background: isToday ? '#0EA5E9' : 'none',
+                color: isToday ? '#fff' : '#0F172A',
+                border: 'none', borderRadius: '6px',
+                padding: '5px 0', fontSize: '0.82rem',
+                cursor: 'pointer', fontWeight: isToday ? 700 : 400,
+                transition: 'background 0.15s'
+              }}
+              onMouseEnter={e => { if (!isToday) e.target.style.background = '#E0F2FE'; }}
+              onMouseLeave={e => { if (!isToday) e.target.style.background = 'none'; }}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Today shortcut */}
+      <button
+        onClick={() => { onSelect(todayStr); onClose(); }}
+        style={{
+          marginTop: '12px', width: '100%', background: '#E0F2FE',
+          border: '1px solid #BAE6FD', borderRadius: '6px',
+          padding: '6px', fontSize: '0.82rem', fontWeight: 600,
+          color: '#0284C7', cursor: 'pointer'
+        }}
+      >
+        Today
+      </button>
+    </div>
+  );
 }
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const calendarRef = useRef(null);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+  // Close calendar when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (calendarRef.current && !calendarRef.current.contains(e.target)) {
+        setShowCalendar(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleLogout = () => { logout(); navigate('/'); };
 
   const handleSearch = () => {
     const q = searchQuery.trim();
-    if (q) {
-      navigate(`/doctors?search=${encodeURIComponent(q)}`);
-    }
+    if (q) navigate(`/doctors?search=${encodeURIComponent(q)}`);
   };
 
   const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
+    if (e.key === 'Enter') handleSearch();
+  };
+
+  const handleDateSelect = (dateStr) => {
+    navigate(`/appointments?date=${dateStr}`);
   };
 
   let links = adminLinks;
@@ -118,9 +217,7 @@ export default function Layout() {
           </div>
           <div className="sidebar-name">{user?.name || 'User'}</div>
           <div className="sidebar-email">{user?.email || 'user@email.com'}</div>
-          <button className="btn-logout" onClick={handleLogout}>
-            Log out
-          </button>
+          <button className="btn-logout" onClick={handleLogout}>Log out</button>
         </div>
 
         <nav className="sidebar-nav">
@@ -149,14 +246,30 @@ export default function Layout() {
             />
             <button className="btn-search" onClick={handleSearch}>Search</button>
           </div>
-          <div className="topbar-date" onClick={() => navigate('/appointments')} title="View today's appointments" style={{ cursor: 'pointer' }}>
-            <div>
-              <div className="date-label">Today's Date</div>
-              <div className="date-value">{getToday()}</div>
+
+          {/* Date + Mini Calendar */}
+          <div ref={calendarRef} style={{ position: 'relative' }}>
+            <div
+              className="topbar-date"
+              onClick={() => setShowCalendar(v => !v)}
+              title="Pick a date to filter appointments"
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              <div>
+                <div className="date-label">Today's Date</div>
+                <div className="date-value">{getToday()}</div>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
             </div>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
+
+            {showCalendar && (
+              <MiniCalendar
+                onSelect={handleDateSelect}
+                onClose={() => setShowCalendar(false)}
+              />
+            )}
           </div>
         </div>
         <Outlet />
@@ -164,4 +277,3 @@ export default function Layout() {
     </div>
   );
 }
-
