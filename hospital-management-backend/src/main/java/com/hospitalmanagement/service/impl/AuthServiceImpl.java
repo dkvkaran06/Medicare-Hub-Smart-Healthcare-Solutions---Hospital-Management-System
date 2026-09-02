@@ -159,7 +159,27 @@ public class AuthServiceImpl implements AuthService {
     public Map<String, Object> me(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return buildUserResponse(user);
+        
+        Map<String, Object> response = buildUserResponse(user);
+        
+        if (user.getRole() == UserRole.PATIENT) {
+            patientRepository.findByEmail(email).ifPresent(p -> {
+                response.put("age", p.getAge());
+                response.put("gender", p.getGender());
+                response.put("phone", p.getPhone());
+                response.put("bloodGroup", p.getBloodGroup());
+            });
+        } else if (user.getRole() == UserRole.DOCTOR) {
+            doctorRepository.findByEmail(email).ifPresent(d -> {
+                response.put("phone", d.getPhone());
+                response.put("specialization", d.getSpecialization());
+                if (d.getDepartment() != null) {
+                    response.put("department", d.getDepartment().getName());
+                }
+            });
+        }
+        
+        return response;
     }
 
     @Override

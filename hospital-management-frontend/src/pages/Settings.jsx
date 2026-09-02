@@ -176,7 +176,24 @@ export default function Settings() {
               <div style={{marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px'}}>
                 <div><strong>Name:</strong> {userDetails.name}</div>
                 <div><strong>Email:</strong> {userDetails.email}</div>
-                <div><strong>Role:</strong> <span className={`status-badge status-${userDetails.role}`}>{userDetails.role.toUpperCase()}</span></div>
+                <div><strong>Role:</strong> <span className={`status-badge status-${userDetails.role}`}>{userDetails.role?.toUpperCase()}</span></div>
+                
+                {userDetails.phone && <div><strong>Phone:</strong> {userDetails.phone}</div>}
+                
+                {userDetails.role === 'patient' && (
+                  <>
+                    {userDetails.age !== undefined && <div><strong>Age:</strong> {userDetails.age}</div>}
+                    {userDetails.gender && <div><strong>Gender:</strong> {userDetails.gender}</div>}
+                    {userDetails.bloodGroup && <div><strong>Blood Group:</strong> {userDetails.bloodGroup}</div>}
+                  </>
+                )}
+                
+                {userDetails.role === 'doctor' && (
+                  <>
+                    {userDetails.specialization && <div><strong>Specialization:</strong> {userDetails.specialization}</div>}
+                    {userDetails.department && <div><strong>Department:</strong> {userDetails.department}</div>}
+                  </>
+                )}
               </div>
             ) : (
               <p>Loading...</p>
