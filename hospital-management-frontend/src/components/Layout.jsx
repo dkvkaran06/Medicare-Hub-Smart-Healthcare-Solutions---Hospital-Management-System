@@ -82,7 +82,7 @@ function getToday() {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
-function MiniCalendar({ onSelect, onClose }) {
+function MiniCalendar({ top, right, onSelect, onClose }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -106,9 +106,9 @@ function MiniCalendar({ onSelect, onClose }) {
 
   return (
     <div style={{
-      position: 'absolute', top: '110%', right: 0, zIndex: 200,
+      position: 'fixed', top: `${top}px`, right: `${right}px`, zIndex: 9999,
       background: '#fff', border: '1px solid #BAE6FD',
-      borderRadius: '12px', boxShadow: '0 8px 32px rgba(14,165,233,0.15)',
+      borderRadius: '12px', boxShadow: '0 8px 32px rgba(14,165,233,0.20)',
       padding: '16px', width: '260px',
       animation: 'slideUp 0.2s ease'
     }}>
@@ -174,18 +174,29 @@ export default function Layout() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarPos, setCalendarPos] = useState({ top: 0, right: 0 });
   const calendarRef = useRef(null);
+  const triggerRef = useRef(null);
 
   // Close calendar when clicking outside
   useEffect(() => {
     const handler = (e) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target)) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target) &&
+          triggerRef.current && !triggerRef.current.contains(e.target)) {
         setShowCalendar(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const toggleCalendar = () => {
+    if (!showCalendar && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCalendarPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+    setShowCalendar(v => !v);
+  };
 
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -248,10 +259,10 @@ export default function Layout() {
           </div>
 
           {/* Date + Mini Calendar */}
-          <div ref={calendarRef} style={{ position: 'relative' }}>
+          <div ref={triggerRef}>
             <div
               className="topbar-date"
-              onClick={() => setShowCalendar(v => !v)}
+              onClick={toggleCalendar}
               title="Pick a date to filter appointments"
               style={{ cursor: 'pointer', userSelect: 'none' }}
             >
@@ -263,14 +274,18 @@ export default function Layout() {
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
               </svg>
             </div>
+          </div>
 
-            {showCalendar && (
+          {showCalendar && (
+            <div ref={calendarRef}>
               <MiniCalendar
+                top={calendarPos.top}
+                right={calendarPos.right}
                 onSelect={handleDateSelect}
                 onClose={() => setShowCalendar(false)}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <Outlet />
       </main>
