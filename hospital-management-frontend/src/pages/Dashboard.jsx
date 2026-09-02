@@ -220,7 +220,7 @@ export default function Dashboard() {
               <p>No upcoming appointments found</p>
             </div>
           )}
-          <div style={{ marginTop: '14px' }}>
+          <div style={{ marginTop: 'auto', paddingTop: '14px' }}>
             <Link to="/appointments" className="btn-add-new" style={{ width: '100%', justifyContent: 'center' }}>
               Show all Appointments
             </Link>
@@ -240,7 +240,7 @@ export default function Dashboard() {
             </svg>
             <p>View billing details in the Billing section</p>
           </div>
-          <div style={{ marginTop: '14px' }}>
+          <div style={{ marginTop: 'auto', paddingTop: '14px' }}>
             <Link to="/billing" className="btn-add-new" style={{ width: '100%', justifyContent: 'center' }}>
               Show all Bills
             </Link>
