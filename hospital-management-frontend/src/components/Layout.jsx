@@ -254,6 +254,8 @@ export default function Layout() {
   };
 
   const handleLogout = () => {
+    console.log("Logout button clicked!");
+    alert("Logout button clicked!");
     setShowDropdown(false);
     logout(); 
   };
@@ -379,7 +381,10 @@ export default function Layout() {
                   <Link 
                     to="/settings" 
                     className="avatar-dropdown-item" 
-                    onClick={() => setShowDropdown(false)}
+                    onClick={() => {
+                      console.log("Settings clicked!");
+                      setShowDropdown(false);
+                    }}
                     style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
