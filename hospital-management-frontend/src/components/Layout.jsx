@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -106,7 +107,7 @@ function MiniCalendar({ top, right, onSelect, onClose }) {
 
   return (
     <div style={{
-      position: 'fixed', top: `${top}px`, right: `${right}px`, zIndex: 9999,
+      position: 'fixed', top: `${top}px`, right: `${right}px`, zIndex: 999999,
       background: '#fff', border: '1px solid #BAE6FD',
       borderRadius: '12px', boxShadow: '0 8px 32px rgba(14,165,233,0.20)',
       padding: '16px', width: '260px',
@@ -276,15 +277,16 @@ export default function Layout() {
             </div>
           </div>
 
-          {showCalendar && (
-            <div ref={calendarRef}>
+          {showCalendar && ReactDOM.createPortal(
+            <div ref={calendarRef} style={{ position: 'relative', zIndex: 999999 }}>
               <MiniCalendar
                 top={calendarPos.top}
                 right={calendarPos.right}
                 onSelect={handleDateSelect}
                 onClose={() => setShowCalendar(false)}
               />
-            </div>
+            </div>,
+            document.body
           )}
         </div>
         <Outlet />
