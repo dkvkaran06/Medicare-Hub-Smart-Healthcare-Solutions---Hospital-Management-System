@@ -45,8 +45,8 @@ export default function Register() {
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('Male');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Doctor fields
   const [specialization, setSpecialization] = useState('');
@@ -88,7 +88,7 @@ export default function Register() {
     try {
       const payload = { name, email, password, role };
       if (role === 'patient') {
-        Object.assign(payload, { age, gender, phone, address, bloodGroup });
+        Object.assign(payload, { age, gender, phone, bloodGroup });
       } else if (role === 'doctor') {
         Object.assign(payload, { phone, specialization, departmentId });
       }
@@ -151,13 +151,43 @@ export default function Register() {
           {/* ── Password with strength meter ── */}
           <div className="form-group">
             <label>Password:</label>
-            <input
-              type="password"
-              placeholder="Create a strong password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Create a strong password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ paddingRight: '44px', width: '100%' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute', right: '12px', top: '50%',
+                  transform: 'translateY(-50%)', background: 'none',
+                  border: 'none', cursor: 'pointer', padding: '0',
+                  color: '#94A3B8', display: 'flex', alignItems: 'center'
+                }}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
 
             {/* Strength bar + label */}
             {password && (
@@ -218,10 +248,6 @@ export default function Register() {
               <div className="form-group">
                 <label>Phone:</label>
                 <input type="text" placeholder="Your Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label>Address:</label>
-                <input type="text" placeholder="Your Address" value={address} onChange={(e) => setAddress(e.target.value)} required />
               </div>
               <div className="form-group">
                 <label>Blood Group:</label>
