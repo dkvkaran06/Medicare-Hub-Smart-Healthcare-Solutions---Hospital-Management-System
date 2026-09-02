@@ -45,7 +45,7 @@ public class SecurityConfig {
                         .antMatchers("/", "/favicon.ico", "/api/auth/**", "/healthz", "/error").permitAll()
 
                         // Departments: any signed-in user may read; only admins may modify.
-                        .antMatchers(HttpMethod.GET, "/api/departments/**").permitAll()
+                        .antMatchers(HttpMethod.GET, "/api/departments", "/api/departments/**").permitAll()
                         .antMatchers("/api/departments/**").hasRole("ADMIN")
 
                         // Patients: full list is staff-only; a patient reaches their own
