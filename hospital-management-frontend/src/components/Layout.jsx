@@ -255,7 +255,6 @@ export default function Layout() {
 
   const handleLogout = () => {
     console.log("Logout button clicked!");
-    alert("Logout button clicked!");
     setShowDropdown(false);
     logout(); 
   };
@@ -376,10 +375,9 @@ export default function Layout() {
                   <div className="avatar-dropdown" style={{ zIndex: 100, position: 'absolute' }}>
                   <div 
                     className="avatar-dropdown-item" 
-                    onPointerDown={(e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       console.log("Settings clicked!");
-                      alert("Settings clicked!");
                       setShowDropdown(false);
                       navigate('/settings');
                     }}
@@ -392,7 +390,7 @@ export default function Layout() {
                   </div>
                   <div 
                     className="avatar-dropdown-item danger" 
-                    onPointerDown={(e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       handleLogout();
                     }}
