@@ -1,252 +1,405 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { getAppointments, getBills, getDoctorByEmail, getDoctors, getPatientByEmail, getPatients } from '../api/hospitalApi';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  getAppointments, getBills, getDoctorByEmail,
+  getDoctors, getPatientByEmail, getPatients
+} from '../api/hospitalApi';
 import { useAuth } from '../context/AuthContext';
-import StatCard from '../components/StatCard';
 
+/* ─── helpers ─── */
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function formatCurrency(n) {
+  return `₹${Number(n || 0).toLocaleString('en-IN')}`;
+}
+
+function getStatusBadge(status) {
+  const map = {
+    SCHEDULED:  { label: 'Scheduled',  cls: 'badge-info'    },
+    COMPLETED:  { label: 'Completed',  cls: 'badge-success' },
+    CANCELLED:  { label: 'Cancelled',  cls: 'badge-danger'  },
+    PENDING:    { label: 'Pending',    cls: 'badge-warning' },
+  };
+  const s = map[status?.toUpperCase()] || { label: status || '—', cls: 'badge-info' };
+  return <span className={`status-badge ${s.cls}`}>{s.label}</span>;
+}
+
+/* ─── sub-components ─── */
+
+/** Search banner — only shown to patients */
+function FindDoctorBanner() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
+  const handleSearch = () => {
+    if (q.trim()) navigate(`/doctors?search=${encodeURIComponent(q.trim())}`);
+    else navigate('/doctors');
+  };
+  return (
+    <div className="db-find-banner">
+      <div className="db-find-banner-text">
+        <h3>Find the right doctor for your needs</h3>
+        <p>Search by name, specialty, or department — then book in seconds.</p>
+      </div>
+      <div className="db-find-banner-search">
+        <div className="db-find-input-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search doctors or specialties…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          />
+        </div>
+        <button className="db-find-btn" onClick={handleSearch}>Find a Doctor</button>
+      </div>
+    </div>
+  );
+}
+
+/** Clickable overview stat card */
+function OverviewCard({ icon, label, value, sub, to, color }) {
+  return (
+    <Link to={to} className="db-overview-card" data-color={color}>
+      <div className="db-overview-icon">{icon}</div>
+      <div className="db-overview-body">
+        <div className="db-overview-value">{value}</div>
+        <div className="db-overview-label">{label}</div>
+        {sub && <div className="db-overview-sub">{sub}</div>}
+      </div>
+      <div className="db-overview-arrow">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+    </Link>
+  );
+}
+
+/* ─── main component ─── */
 export default function Dashboard() {
   const { user } = useAuth();
-  const [allAppointments, setAllAppointments] = useState([]);
-  const [allBills, setAllBills] = useState([]);
-  const [doctors, setDoctors] = useState([]);
-  const [patients, setPatients] = useState([]);
+  const navigate = useNavigate();
 
-  const isAdmin = user?.role === 'admin';
-  const isDoctor = user?.role === 'doctor';
+  const [allAppointments, setAllAppointments] = useState([]);
+  const [allBills,        setAllBills]        = useState([]);
+  const [doctors,         setDoctors]         = useState([]);
+  const [patients,        setPatients]        = useState([]);
+  const [loading,         setLoading]         = useState(true);
+
+  const isAdmin   = user?.role === 'admin';
+  const isDoctor  = user?.role === 'doctor';
   const isPatient = user?.role === 'patient';
 
-  // Find linked patient/doctor by email
-  const myPatientId = useMemo(() => {
-    if (!isPatient) return null;
-    const match = patients.find((p) => p.email === user?.email);
-    return match ? match.id : null;
-  }, [patients, user, isPatient]);
+  /* linked patient/doctor */
+  const myPatient = useMemo(() =>
+    isPatient ? patients.find(p => p.email === user?.email) : null,
+    [patients, user, isPatient]);
 
-  const myDoctorId = useMemo(() => {
-    if (!isDoctor) return null;
-    const match = doctors.find((d) => d.email === user?.email);
-    return match ? match.id : null;
-  }, [doctors, user, isDoctor]);
+  const myDoctor = useMemo(() =>
+    isDoctor ? doctors.find(d => d.email === user?.email) : null,
+    [doctors, user, isDoctor]);
+
+  const myPatientId = myPatient?.id ?? null;
+  const myDoctorId  = myDoctor?.id  ?? null;
 
   useEffect(() => {
-    const loadStats = async () => {
-      // Each role pulls only the data it is allowed to see, scoped server-side.
-      if (isPatient) {
-        let myPat = null;
-        try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
-        const [appointmentsRes, billsRes, doctorsRes] = await Promise.all([
-          myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
-          myPat ? getBills({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
-          getDoctors(),
-        ]);
-        setPatients(myPat ? [myPat] : []);
-        setDoctors(doctorsRes.data);
-        setAllAppointments(appointmentsRes.data);
-        setAllBills(billsRes.data);
-        return;
-      }
-
-      if (isDoctor) {
-        let myDoc = null;
-        try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { myDoc = null; }
-        const [appointmentsRes, patientsRes, doctorsRes] = await Promise.all([
-          myDoc ? getAppointments({ doctorId: myDoc.id }) : Promise.resolve({ data: [] }),
-          getPatients(),
-          getDoctors(),
-        ]);
-        setPatients(patientsRes.data);
-        setDoctors(doctorsRes.data);
-        setAllAppointments(appointmentsRes.data);
-        setAllBills([]);
-        return;
-      }
-
-      const [patientsRes, doctorsRes, appointmentsRes, billsRes] = await Promise.all([
-        getPatients(),
-        getDoctors(),
-        getAppointments(),
-        getBills(),
-      ]);
-
-      setPatients(patientsRes.data);
-      setDoctors(doctorsRes.data);
-      setAllAppointments(appointmentsRes.data);
-      setAllBills(billsRes.data);
-    };
-
-    loadStats().catch(() => {});
+    (async () => {
+      try {
+        if (isPatient) {
+          let myPat = null;
+          try { myPat = (await getPatientByEmail(user.email)).data; } catch { /* ok */ }
+          const [aptsRes, billsRes, docsRes] = await Promise.all([
+            myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
+            myPat ? getBills({ patientId: myPat.id })        : Promise.resolve({ data: [] }),
+            getDoctors(),
+          ]);
+          setPatients(myPat ? [myPat] : []);
+          setDoctors(docsRes.data);
+          setAllAppointments(aptsRes.data);
+          setAllBills(billsRes.data);
+        } else if (isDoctor) {
+          let myDoc = null;
+          try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { /* ok */ }
+          const [aptsRes, patsRes, docsRes] = await Promise.all([
+            myDoc ? getAppointments({ doctorId: myDoc.id }) : Promise.resolve({ data: [] }),
+            getPatients(),
+            getDoctors(),
+          ]);
+          setPatients(patsRes.data);
+          setDoctors(docsRes.data);
+          setAllAppointments(aptsRes.data);
+          setAllBills([]);
+        } else {
+          const [patsRes, docsRes, aptsRes, billsRes] = await Promise.all([
+            getPatients(), getDoctors(), getAppointments(), getBills(),
+          ]);
+          setPatients(patsRes.data);
+          setDoctors(docsRes.data);
+          setAllAppointments(aptsRes.data);
+          setAllBills(billsRes.data);
+        }
+      } catch { /* silently ignore */ }
+      finally { setLoading(false); }
+    })();
   }, []);
 
-  // Role-based filtered data
+  /* filtered data */
   const myAppointments = useMemo(() => {
-    if (isAdmin) return allAppointments;
-    if (isPatient && myPatientId) return allAppointments.filter((a) => a.patientId === myPatientId);
-    if (isDoctor && myDoctorId) return allAppointments.filter((a) => a.doctorId === myDoctorId);
+    if (isAdmin)   return allAppointments;
+    if (isPatient && myPatientId) return allAppointments.filter(a => a.patientId === myPatientId);
+    if (isDoctor  && myDoctorId)  return allAppointments.filter(a => a.doctorId  === myDoctorId);
     return [];
   }, [allAppointments, isAdmin, isPatient, isDoctor, myPatientId, myDoctorId]);
 
   const myBills = useMemo(() => {
-    if (isAdmin) return allBills;
-    if (isPatient && myPatientId) return allBills.filter((b) => b.patientId === myPatientId);
+    if (isAdmin)   return allBills;
+    if (isPatient && myPatientId) return allBills.filter(b => b.patientId === myPatientId);
     return [];
   }, [allBills, isAdmin, isPatient, myPatientId]);
 
   const myPatients = useMemo(() => {
     if (isAdmin) return patients;
     if (isDoctor && myDoctorId) {
-      const patientIds = new Set(allAppointments.filter((a) => a.doctorId === myDoctorId).map((a) => a.patientId));
-      return patients.filter((p) => patientIds.has(p.id));
+      const ids = new Set(allAppointments.filter(a => a.doctorId === myDoctorId).map(a => a.patientId));
+      return patients.filter(p => ids.has(p.id));
     }
     return [];
   }, [patients, allAppointments, isAdmin, isDoctor, myDoctorId]);
 
-  const stats = {
-    patients: isAdmin ? patients.length : isDoctor ? myPatients.length : 0,
-    doctors: doctors.length,
-    appointments: myAppointments.length,
-    pendingBills: myBills.filter((b) => b.paymentStatus === 'PENDING').length,
-  };
+  const pendingBills   = myBills.filter(b => b.paymentStatus === 'PENDING');
+  const pendingAmount  = pendingBills.reduce((s, b) => s + (b.amount || 0), 0);
+  const upcomingApts   = myAppointments
+    .filter(a => a.appointmentDate >= new Date().toISOString().split('T')[0])
+    .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate))
+    .slice(0, 5);
 
-  const recentAppointments = myAppointments.slice(0, 5);
+  /* lookup helpers */
+  const getPatientName = id => patients.find(p => p.id === id)?.name || `Patient #${id}`;
+  const getDoctorName  = id => doctors.find(d => d.id === id)?.name  || `Doctor #${id}`;
 
-  const getPatientName = (id) => {
-    const p = patients.find((pat) => pat.id === id);
-    return p ? p.name : id;
-  };
-
-  const getDoctorName = (id) => {
-    const d = doctors.find((doc) => doc.id === id);
-    return d ? d.name : id;
-  };
+  /* ── medical records count (stored on patient object if available) */
+  const medicalRecordsCount = myPatient?.medicalRecordsCount ?? 0;
 
   return (
     <div className="page-content">
-      {/* Welcome Banner */}
-      <div className="welcome-banner">
-        <h3>Welcome!</h3>
-        <h2>{user?.name || 'User'}.</h2>
-        <p>
-          Thanks for joining us. We are always trying to get you a complete service.
-          {isDoctor && ' You can view your daily schedule, Reach Patients Appointment at home!'}
-          {isAdmin && ' Manage your hospital operations from this dashboard.'}
-          {isPatient && ' Find your doctor and book appointments easily!'}
-        </p>
-        <Link to="/appointments" className="btn-primary">
-          View {isAdmin ? '' : 'My '}Appointments
-        </Link>
+
+      {/* ── Greeting ─────────────────────────────────────── */}
+      <div className="db-greeting">
+        <div>
+          <h1 className="db-greeting-title">
+            {getGreeting()}, {user?.name?.split(' ')[0] || 'there'} 👋
+          </h1>
+          <p className="db-greeting-sub">
+            {isPatient && "Here's your healthcare overview for today."}
+            {isDoctor  && "Here's your schedule and patient overview for today."}
+            {isAdmin   && "Here's your hospital operations summary for today."}
+          </p>
+        </div>
       </div>
 
-      {/* Status Cards */}
-      <h3 className="dashboard-label">Status</h3>
-      <div className="stat-grid">
-        {(isAdmin || isDoctor) && (
-          <StatCard
-            label={isDoctor ? 'My Patients' : 'All Doctors'}
-            value={isDoctor ? stats.patients : stats.doctors}
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-            }
-          />
-        )}
-        {isAdmin && (
-          <StatCard
-            label="All Patients"
-            value={stats.patients}
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            }
-          />
-        )}
-        <StatCard
-          label={isAdmin ? 'NewBooking' : 'My Appointments'}
-          value={stats.appointments}
+      {/* ── Find a Doctor banner (patients only) ─────────── */}
+      {isPatient && <FindDoctorBanner />}
+
+      {/* ── Overview stat cards ───────────────────────────── */}
+      <h2 className="db-section-title">Your Overview</h2>
+      <div className="db-overview-grid">
+        {/* Appointments */}
+        <OverviewCard
+          color="blue"
+          to="/appointments"
+          label={isAdmin ? 'Total Appointments' : isDoctor ? 'My Appointments' : 'Appointments'}
+          value={loading ? '—' : myAppointments.length}
+          sub="View all →"
           icon={
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           }
         />
-        {(isAdmin || isPatient) && (
-          <StatCard
-            label={isPatient ? 'My Pending Bills' : 'Pending Bills'}
-            value={stats.pendingBills}
+
+        {/* Pending Bills — patients + admin */}
+        {(isPatient || isAdmin) && (
+          <OverviewCard
+            color="amber"
+            to="/billing"
+            label={isAdmin ? 'Pending Bills' : 'Pending Bills'}
+            value={loading ? '—' : isPatient ? formatCurrency(pendingAmount) : pendingBills.length}
+            sub={isPatient ? `${pendingBills.length} invoice${pendingBills.length !== 1 ? 's' : ''} pending` : 'View all →'}
             icon={
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
               </svg>
             }
           />
         )}
+
+        {/* Medical Records — patients */}
+        {isPatient && (
+          <OverviewCard
+            color="purple"
+            to="/medical-records"
+            label="Medical Records"
+            value={loading ? '—' : medicalRecordsCount}
+            sub="View records →"
+            icon={
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            }
+          />
+        )}
+
+        {/* My Patients — doctors */}
+        {isDoctor && (
+          <OverviewCard
+            color="green"
+            to="/patients"
+            label="My Patients"
+            value={loading ? '—' : myPatients.length}
+            sub="View all →"
+            icon={
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            }
+          />
+        )}
+
+        {/* All Doctors / Patients — admin */}
+        {isAdmin && (
+          <>
+            <OverviewCard
+              color="green"
+              to="/doctors"
+              label="All Doctors"
+              value={loading ? '—' : doctors.length}
+              sub="View all →"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                  <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+                </svg>
+              }
+            />
+            <OverviewCard
+              color="purple"
+              to="/patients"
+              label="All Patients"
+              value={loading ? '—' : patients.length}
+              sub="View all →"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              }
+            />
+          </>
+        )}
       </div>
 
-      {/* Dashboard Grid */}
-      <div className="dashboard-grid">
-        <div className="dashboard-section">
-          <h4>{isAdmin ? 'Upcoming Appointments until Next Friday' : 'My Recent Appointments'}</h4>
-          <p style={{ fontSize: '0.82rem', color: '#64748B', marginBottom: '14px' }}>
-            {isAdmin
-              ? "Here's Quick access to Upcoming Appointments until 7 days. More details available in @Appointment section."
-              : 'Your most recent appointments. View all in the Appointments section.'}
-          </p>
-          {recentAppointments.length > 0 ? (
+      {/* ── Upcoming Appointment ──────────────────────────── */}
+      <h2 className="db-section-title" style={{ marginTop: '32px' }}>
+        {isAdmin ? 'Upcoming Appointments' : isDoctor ? 'My Upcoming Appointments' : 'Upcoming Appointment'}
+      </h2>
+
+      <div className="db-apt-section">
+        {loading ? (
+          <div className="db-empty-state">
+            <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
+          </div>
+        ) : upcomingApts.length > 0 ? (
+          <>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Apt. No</th>
-                    <th>Patient Name</th>
-                    <th>Doctor</th>
+                    <th>#</th>
+                    <th>Patient</th>
+                    {!isPatient && <th>Doctor</th>}
                     <th>Date</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentAppointments.map((apt) => (
+                  {upcomingApts.map(apt => (
                     <tr key={apt.id}>
-                      <td>{apt.id}</td>
+                      <td style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>{apt.id}</td>
                       <td>{getPatientName(apt.patientId)}</td>
-                      <td>{getDoctorName(apt.doctorId)}</td>
+                      {!isPatient && <td>{getDoctorName(apt.doctorId)}</td>}
                       <td>{apt.appointmentDate}</td>
+                      <td>{getStatusBadge(apt.status)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          ) : (
-            <div className="empty-state-inline">
-              <p>No upcoming appointments found</p>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
+              <Link to="/appointments" className="btn-add-new">View all appointments</Link>
             </div>
-          )}
-          <div style={{ marginTop: 'auto', paddingTop: '14px' }}>
-            <Link to="/appointments" className="btn-add-new" style={{ width: '100%', justifyContent: 'center' }}>
-              Show all Appointments
-            </Link>
+          </>
+        ) : (
+          /* ── Actionable empty state ── */
+          <div className="db-empty-state">
+            <div className="db-empty-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            {isPatient ? (
+              <>
+                <p className="db-empty-title">No upcoming appointments</p>
+                <p className="db-empty-body">
+                  You don't have any appointments scheduled yet.<br/>
+                  Find a doctor and book your first appointment.
+                </p>
+                <Link to="/doctors" className="btn-primary db-empty-cta">Find a Doctor</Link>
+              </>
+            ) : isDoctor ? (
+              <>
+                <p className="db-empty-title">No upcoming appointments</p>
+                <p className="db-empty-body">You have no appointments scheduled for the coming days.</p>
+              </>
+            ) : (
+              <>
+                <p className="db-empty-title">No upcoming appointments</p>
+                <p className="db-empty-body">There are no appointments scheduled in the system yet.</p>
+                <Link to="/appointments" className="btn-primary db-empty-cta">Go to Appointments</Link>
+              </>
+            )}
           </div>
-        </div>
-
-        <div className="dashboard-section">
-          <h4>{isPatient ? 'My Billing Summary' : 'Recent Billing Activity'}</h4>
-          <p style={{ fontSize: '0.82rem', color: '#64748B', marginBottom: '14px' }}>
-            {isPatient
-              ? 'Overview of your billing. More details in the Billing section.'
-              : 'Quick overview of recent billing. More details in @Billing section.'}
-          </p>
-          <div className="empty-state-inline">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ width: 80, height: 80, margin: '0 auto 12px', display: 'block', color: '#E2E8F0' }}>
-              <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-            <p>View billing details in the Billing section</p>
-          </div>
-          <div style={{ marginTop: 'auto', paddingTop: '14px' }}>
-            <Link to="/billing" className="btn-add-new" style={{ width: '100%', justifyContent: 'center' }}>
-              Show all Bills
-            </Link>
-          </div>
-        </div>
+        )}
       </div>
+
     </div>
   );
 }
