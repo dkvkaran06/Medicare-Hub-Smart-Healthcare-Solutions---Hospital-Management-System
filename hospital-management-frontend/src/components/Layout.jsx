@@ -223,11 +223,13 @@ export default function Layout() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarPos, setCalendarPos] = useState({ top: 0, right: 0 });
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
   const [showNotif, setShowNotif] = useState(false);
   
   const calendarRef = useRef(null);
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);
+  const avatarBtnRef = useRef(null);
   const notifRef = useRef(null);
 
   // Close modals/dropdowns when clicking outside
@@ -240,6 +242,12 @@ export default function Layout() {
       if (notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotif(false);
       }
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        avatarBtnRef.current && !avatarBtnRef.current.contains(e.target)
+      ) {
+        setShowDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -251,6 +259,14 @@ export default function Layout() {
       setCalendarPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
     }
     setShowCalendar(v => !v);
+  };
+
+  const toggleDropdown = () => {
+    if (!showDropdown && avatarBtnRef.current) {
+      const rect = avatarBtnRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+    setShowDropdown(v => !v);
   };
 
   const handleLogout = () => {
@@ -359,50 +375,57 @@ export default function Layout() {
               )}
             </div>
 
-            <div className="topbar-user" ref={dropdownRef}>
+            <div className="topbar-user">
               <div 
+                ref={avatarBtnRef}
                 style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-                onClick={() => setShowDropdown(!showDropdown)}
+                onClick={toggleDropdown}
               >
                 <div className="topbar-user-name">{user?.name || 'User'}</div>
                 <div className="topbar-avatar">
                   {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
               </div>
-              
-              {showDropdown && (
-                <>
-                  <div className="avatar-dropdown" style={{ zIndex: 100, position: 'absolute' }}>
+
+              {showDropdown && ReactDOM.createPortal(
+                <div
+                  ref={dropdownRef}
+                  className="avatar-dropdown"
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPos.top}px`,
+                    right: `${dropdownPos.right}px`,
+                    zIndex: 999999,
+                  }}
+                >
                   <div 
                     className="avatar-dropdown-item" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log("Settings clicked!");
+                    onClick={() => {
                       setShowDropdown(false);
                       navigate('/settings');
                     }}
                     style={{ textDecoration: 'none', color: 'inherit', display: 'flex', cursor: 'pointer' }}
                   >
-                    <svg style={{ pointerEvents: 'none' }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
                       <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                     </svg>
                     Profile Settings
                   </div>
                   <div 
                     className="avatar-dropdown-item danger" 
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={() => {
+                      setShowDropdown(false);
                       handleLogout();
                     }}
-                    style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', font: 'inherit', display: 'flex', cursor: 'pointer' }}
+                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex', cursor: 'pointer' }}
                   >
-                    <svg style={{ pointerEvents: 'none' }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
                     </svg>
                     Log Out
                   </div>
-                </div>
-                </>
+                </div>,
+                document.body
               )}
             </div>
           </div>
