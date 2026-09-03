@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getAppointments, getDoctors, getPatientByEmail, getDoctorByEmail } from '../api/hospitalApi';
+import { cachedFetch } from '../api/cache';
 
 const adminLinks = [
   {
@@ -17,8 +19,8 @@ const adminLinks = [
   {
     group: 'HEALTH',
     items: [
-      { to: '/medical-records', label: 'Medical Records', icon: 'records' },
-      { to: '/billing', label: 'Billing', icon: 'billing' },
+      { to: '/medical-records', label: 'Records', icon: 'records' },
+      { to: '/billing', label: 'Bills', icon: 'billing' },
     ]
   },
   {
@@ -34,14 +36,14 @@ const doctorLinks = [
     group: 'MAIN',
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-      { to: '/appointments', label: 'My Appointments', icon: 'appointments' },
-      { to: '/patients', label: 'My Patients', icon: 'patients' },
+      { to: '/appointments', label: 'Appointments', icon: 'appointments' },
+      { to: '/patients', label: 'Patients', icon: 'patients' },
     ]
   },
   {
     group: 'HEALTH',
     items: [
-      { to: '/medical-records', label: 'Medical Records', icon: 'records' },
+      { to: '/medical-records', label: 'Records', icon: 'records' },
     ]
   },
   {
@@ -57,15 +59,15 @@ const patientLinks = [
     group: 'MAIN',
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-      { to: '/doctors', label: 'Find Doctors', icon: 'doctors' },
-      { to: '/appointments', label: 'My Appointments', icon: 'appointments' },
+      { to: '/doctors', label: 'Doctors', icon: 'doctors' },
+      { to: '/appointments', label: 'Appointments', icon: 'appointments' },
     ]
   },
   {
     group: 'HEALTH',
     items: [
-      { to: '/medical-records', label: 'My Records', icon: 'records' },
-      { to: '/billing', label: 'My Bills', icon: 'billing' },
+      { to: '/medical-records', label: 'Records', icon: 'records' },
+      { to: '/billing', label: 'Bills', icon: 'billing' },
     ]
   },
   {
@@ -222,9 +224,21 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarPos, setCalendarPos] = useState({ top: 0, right: 0 });
+  const [showNotif, setShowNotif] = useState(false);
+  const [notifPos, setNotifPos] = useState({ top: 0, right: 0 });
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
-  const [showNotif, setShowNotif] = useState(false);
+
+  const getDynamicGreeting = () => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return 'Good Morning,';
+    if (h >= 12 && h < 17) return 'Good Afternoon,';
+    if (h >= 17 && h < 24) return 'Good Evening,';
+    return 'Good Night,';
+  };
+  const [notifications, setNotifications] = useState([]);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [profilePic, setProfilePic] = useState('');
   
   const calendarRef = useRef(null);
   const triggerRef = useRef(null);
@@ -252,6 +266,84 @@ export default function Layout() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    const loadPic = () => {
+      if (user?.email) {
+        setProfilePic(localStorage.getItem(`profile_pic_${user.email}`) || '');
+      }
+    };
+    loadPic();
+    window.addEventListener('profilePicUpdated', loadPic);
+    return () => window.removeEventListener('profilePicUpdated', loadPic);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchNotifications = async () => {
+      try {
+        let apts = [];
+        let docs = [];
+        await cachedFetch('doctors', getDoctors, d => docs = d);
+
+        if (user.role === 'patient') {
+          let myPat = null;
+          try { myPat = (await getPatientByEmail(user.email)).data; } catch {}
+          if (myPat) apts = (await getAppointments({ patientId: myPat.id })).data;
+        } else if (user.role === 'doctor') {
+          let myDoc = null;
+          try { myDoc = (await getDoctorByEmail(user.email)).data; } catch {}
+          if (myDoc) apts = (await getAppointments({ doctorId: myDoc.id })).data;
+        } else {
+          apts = (await getAppointments()).data;
+        }
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const todayStr = today.toISOString().split('T')[0];
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        
+        const docName = id => docs.find(d => d.id === id)?.name || `Doctor #${id}`;
+        
+        const notifs = [];
+        apts.forEach(apt => {
+          if (apt.status?.toUpperCase() !== 'SCHEDULED') return;
+          const dateStr = apt.appointmentDate;
+          if (dateStr < todayStr) {
+            notifs.push({ id: `missed-${apt.id}`, type: 'missed', title: 'Missed Appointment', desc: `You missed an appointment with Dr. ${docName(apt.doctorId)} on ${dateStr}.`, time: dateStr });
+          } else if (dateStr === todayStr) {
+            notifs.push({ id: `today-${apt.id}`, type: 'upcoming', title: 'Appointment Today', desc: `You have an appointment today with Dr. ${docName(apt.doctorId)} at ${apt.appointmentTime}.`, time: dateStr });
+          } else if (dateStr === tomorrowStr) {
+            notifs.push({ id: `tmrw-${apt.id}`, type: 'upcoming', title: 'Appointment Tomorrow', desc: `You have an appointment tomorrow with Dr. ${docName(apt.doctorId)} at ${apt.appointmentTime}.`, time: dateStr });
+          }
+        });
+        
+        notifs.sort((a,b) => b.time.localeCompare(a.time));
+        setNotifications(notifs);
+
+        const lastRead = localStorage.getItem(`hms_notif_read_${user.email}`);
+        if (notifs.length > 0 && lastRead !== JSON.stringify(notifs.map(n => n.id))) {
+          setHasUnread(true);
+        }
+      } catch (e) { console.error('Failed to load notifications', e); }
+    };
+    fetchNotifications();
+  }, [user]);
+
+  const handleOpenNotif = () => {
+    if (!showNotif && notifRef.current) {
+      const rect = notifRef.current.getBoundingClientRect();
+      setNotifPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+    setShowNotif(!showNotif);
+    if (!showNotif) {
+      setHasUnread(false);
+      localStorage.setItem(`hms_notif_read_${user?.email}`, JSON.stringify(notifications.map(n => n.id)));
+    }
+  };
 
   const toggleCalendar = () => {
     if (!showCalendar && triggerRef.current) {
@@ -293,155 +385,125 @@ export default function Layout() {
   if (user?.role === 'patient') links = patientLinks;
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-profile">
-          <div className="sidebar-avatar">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+    <div className="app-shell" style={{ display: 'block' }}>
+      <header className="top-nav-horizontal">
+        <div className="top-nav-logo">
+          <div className="brand-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
-          <div className="sidebar-profile-info">
-            <div className="sidebar-name">{user?.name || 'User'}</div>
-            <div className="profile-role">{user?.role || 'Guest'}</div>
-          </div>
-          <button className="btn-view-profile" onClick={() => navigate('/settings')}>
-            View Profile
-          </button>
+          Medicare Hub
         </div>
 
-        <nav className="sidebar-nav">
-          {links.map((section, idx) => (
-            <div key={idx} style={{ marginBottom: '8px' }}>
-              <div className="sidebar-section-title">{section.group}</div>
-              {section.items.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-                >
-                  {getNavIcon(link.icon)}
-                  {link.label}
-                </NavLink>
-              ))}
-            </div>
+        <nav className="top-nav-links">
+          {links.flatMap(section => section.items).map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => `top-nav-link${isActive ? ' active' : ''}`}
+            >
+              {getNavIcon(link.icon)}
+              {link.label}
+            </NavLink>
           ))}
         </nav>
-      </aside>
 
-      <main className="main-content">
-        <div className="topbar">
-          <div className="topbar-search">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px', color: '#64748B' }}>
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search doctors, specialties or departments"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-            />
+        <div className="top-nav-right">
+          <div className="topbar-notification" ref={notifRef}>
+            <div onClick={handleOpenNotif} className="nav-icon-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {hasUnread && <div className="notification-badge active"></div>}
+            </div>
+            {showNotif && ReactDOM.createPortal(
+              <div className="avatar-dropdown" style={{ position: 'fixed', width: '320px', padding: 0, right: `${notifPos.right}px`, top: `${notifPos.top}px`, boxShadow: 'var(--shadow-lg)', zIndex: 999999 }}>
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  Notifications
+                  <span style={{ fontSize: '0.75rem', fontWeight: 500, background: 'var(--color-bg)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)' }}>{notifications.length}</span>
+                </div>
+                <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                      You have no new notifications.
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div key={n.id} style={{ padding: '16px', borderBottom: '1px solid var(--color-border-light)', display: 'flex', gap: '14px', alignItems: 'flex-start', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background='var(--color-bg)'} onMouseLeave={e => e.currentTarget.style.background='transparent'} onClick={() => { setShowNotif(false); navigate('/appointments'); }}>
+                        <div style={{ padding: '8px', borderRadius: '50%', background: n.type === 'missed' ? 'var(--color-danger-light)' : 'var(--color-primary-light)', color: n.type === 'missed' ? 'var(--color-danger)' : 'var(--color-primary)', flexShrink: 0 }}>
+                          {n.type === 'missed' ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text)' }}>{n.title}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>{n.desc}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)', marginTop: '8px', fontWeight: 500 }}>{n.time}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div style={{ padding: '12px 16px', textAlign: 'center', borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)', borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}>
+                    <Link to="/appointments" style={{ fontSize: '0.85rem', color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500 }} onClick={() => setShowNotif(false)}>View all appointments</Link>
+                  </div>
+                )}
+              </div>,
+              document.body
+            )}
           </div>
 
-          <div className="topbar-actions">
-            {/* Date + Mini Calendar */}
-            <div ref={triggerRef}>
-              <div
-                className="topbar-date"
-                onClick={toggleCalendar}
-                title="Pick a date to filter appointments"
-                style={{ cursor: 'pointer', userSelect: 'none' }}
-              >
-                <div>
-                  <div className="date-label">Today's Date</div>
-                  <div className="date-value">{getToday()}</div>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </div>
+          <div 
+            ref={avatarBtnRef}
+            className="top-nav-user"
+            onClick={toggleDropdown}
+          >
+            <div className="topbar-avatar" style={{ overflow: 'hidden', width: '44px', height: '44px', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', background: '#E0E7FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {profilePic ? <img src={profilePic} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (user?.name ? user.name.charAt(0).toUpperCase() : 'U')}
             </div>
-
-            <div className="topbar-notification" ref={notifRef}>
-              <div onClick={() => setShowNotif(!showNotif)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'relative' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <div className="notification-badge"></div>
-              </div>
-              {showNotif && (
-                <div className="avatar-dropdown" style={{ width: '220px', padding: '16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-                  You have no new notifications.
-                </div>
-              )}
+            <div className="user-greeting" style={{ alignItems: 'flex-start', marginLeft: '8px' }}>
+              <span className="greeting-text" style={{ fontSize: '0.8rem', fontWeight: 500 }}>👋 {getDynamicGreeting()}</span>
+              <span className="user-name" style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.3px' }}>{user?.name || 'User'}</span>
             </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-text-muted)', marginLeft: '4px' }}><path d="m6 9 6 6 6-6"/></svg>
+          </div>
 
-            <div className="topbar-user">
+          {showDropdown && ReactDOM.createPortal(
+            <div
+              ref={dropdownRef}
+              className="avatar-dropdown"
+              style={{
+                position: 'fixed',
+                top: `${dropdownPos.top}px`,
+                right: `${dropdownPos.right}px`,
+                zIndex: 999999,
+              }}
+            >
               <div 
-                ref={avatarBtnRef}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-                onClick={toggleDropdown}
+                className="avatar-dropdown-item" 
+                onClick={() => { setShowDropdown(false); navigate('/settings'); }}
+                style={{ textDecoration: 'none', color: 'inherit', display: 'flex', cursor: 'pointer' }}
               >
-                <div className="topbar-user-name">{user?.name || 'User'}</div>
-                <div className="topbar-avatar">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+                Profile Settings
               </div>
-
-              {showDropdown && ReactDOM.createPortal(
-                <div
-                  ref={dropdownRef}
-                  className="avatar-dropdown"
-                  style={{
-                    position: 'fixed',
-                    top: `${dropdownPos.top}px`,
-                    right: `${dropdownPos.right}px`,
-                    zIndex: 999999,
-                  }}
-                >
-                  <div 
-                    className="avatar-dropdown-item" 
-                    onClick={() => {
-                      setShowDropdown(false);
-                      navigate('/settings');
-                    }}
-                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex', cursor: 'pointer' }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                      <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                    </svg>
-                    Profile Settings
-                  </div>
-                  <div 
-                    className="avatar-dropdown-item danger" 
-                    onClick={() => {
-                      setShowDropdown(false);
-                      handleLogout();
-                    }}
-                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex', cursor: 'pointer' }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    Log Out
-                  </div>
-                </div>,
-                document.body
-              )}
-            </div>
-          </div>
-
-          {showCalendar && ReactDOM.createPortal(
-            <div ref={calendarRef} style={{ position: 'relative', zIndex: 999999 }}>
-              <MiniCalendar
-                top={calendarPos.top}
-                right={calendarPos.right}
-                onSelect={handleDateSelect}
-                onClose={() => setShowCalendar(false)}
-              />
+              <div 
+                className="avatar-dropdown-item danger" 
+                onClick={() => { setShowDropdown(false); handleLogout(); }}
+                style={{ textDecoration: 'none', color: 'inherit', display: 'flex', cursor: 'pointer' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                Log Out
+              </div>
             </div>,
             document.body
           )}
         </div>
+      </header>
+      
+      <main className="page-content" style={{ padding: '24px 40px', maxWidth: '1440px', margin: '0 auto' }}>
         <Outlet />
       </main>
     </div>

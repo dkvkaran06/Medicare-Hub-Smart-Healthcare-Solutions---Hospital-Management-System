@@ -60,7 +60,7 @@ public class SecurityConfig {
 
                         // Appointments: read scoped to the caller in the controller; writes by role.
                         .antMatchers(HttpMethod.GET, "/api/appointments/**").authenticated()
-                        .antMatchers(HttpMethod.POST, "/api/appointments/**").hasRole("ADMIN")
+                        .antMatchers(HttpMethod.POST, "/api/appointments/**").hasAnyRole("ADMIN", "PATIENT")
                         .antMatchers(HttpMethod.PUT, "/api/appointments/**").hasAnyRole("ADMIN", "DOCTOR")
                         .antMatchers(HttpMethod.DELETE, "/api/appointments/**").hasRole("ADMIN")
 
