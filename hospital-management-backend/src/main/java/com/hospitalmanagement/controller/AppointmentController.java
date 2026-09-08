@@ -105,7 +105,13 @@ public class AppointmentController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAppointment(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteAppointment(@PathVariable Long id, Authentication authentication) {
+        if (!SecurityUtils.isAdmin(authentication)) {
+            Appointment appointment = appointmentService.getAppointmentById(id);
+            if (!isOwnAppointment(appointment, authentication)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
         appointmentService.deleteAppointment(id);
         return ResponseEntity.noContent().build();
     }

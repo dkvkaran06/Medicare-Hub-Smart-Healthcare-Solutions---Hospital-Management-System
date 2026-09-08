@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   getAppointments, getBills, getDoctorByEmail,
-  getDoctors, getPatientByEmail, getPatients
+  getDoctors, getPatientByEmail, getPatients, getMedicalRecords
 } from '../api/hospitalApi';
 import { useAuth } from '../context/AuthContext';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -56,6 +56,7 @@ export default function Dashboard() {
   const [apts, setApts] = useState([]);
   const [docs, setDocs] = useState([]);
   const [docSearch, setDocSearch] = useState('');
+  const [medRecordsCount, setMedRecordsCount] = useState(0);
   
   const navigate = useNavigate();
   
@@ -66,18 +67,27 @@ export default function Dashboard() {
         await cachedFetch('doctors', getDoctors, d => { docsData = d; setDocs(d); });
         
         let fetchedApts = [];
+        let recordsCount = 0;
         if (user.role === 'patient') {
           let pat = null;
           try { pat = (await getPatientByEmail(user.email)).data; } catch {}
-          if (pat) fetchedApts = (await getAppointments({ patientId: pat.id })).data;
+          if (pat) {
+            fetchedApts = (await getAppointments({ patientId: pat.id })).data;
+            try { recordsCount = (await getMedicalRecords({ patientId: pat.id })).data.length; } catch {}
+          }
         } else if (user.role === 'doctor') {
           let doc = null;
           try { doc = (await getDoctorByEmail(user.email)).data; } catch {}
-          if (doc) fetchedApts = (await getAppointments({ doctorId: doc.id })).data;
+          if (doc) {
+            fetchedApts = (await getAppointments({ doctorId: doc.id })).data;
+            try { recordsCount = (await getMedicalRecords({ doctorId: doc.id })).data.length; } catch {}
+          }
         } else {
           fetchedApts = (await getAppointments()).data;
+          try { recordsCount = (await getMedicalRecords()).data.length; } catch {}
         }
         setApts(fetchedApts);
+        setMedRecordsCount(recordsCount);
       } catch (err) {
         console.error(err);
       } finally {
@@ -240,7 +250,7 @@ export default function Dashboard() {
             </div>
             <div>
               <div className="stat-label">Medical Records</div>
-              <div className="stat-value">2</div>
+              <div className="stat-value">{medRecordsCount}</div>
             </div>
           </div>
           <div className="stat-card-modern green">

@@ -29,6 +29,9 @@ export default function Settings() {
   const [completedCrop, setCompletedCrop] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
 
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const fileInputRef = useRef(null);
+
   useEffect(() => { fetchMe(); }, []);
 
   useEffect(() => {
@@ -118,19 +121,46 @@ export default function Settings() {
       {/* ── Profile card ── */}
       {userDetails && (
         <div className="settings-profile-card">
-          <div className="settings-profile-avatar" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div className="settings-profile-avatar" style={{ position: 'relative', overflow: 'visible' }}>
             {profilePic ? (
-              <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={profilePic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
             ) : (
-              userDetails.name?.charAt(0)?.toUpperCase() || '?'
+              <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {userDetails.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
             )}
-            <label style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', textAlign: 'center', cursor: 'pointer', padding: '4px 0', opacity: 0.8 }} title="Change Profile Picture">
+            <div 
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', textAlign: 'center', cursor: 'pointer', padding: '6px 0', opacity: 0.8, borderBottomLeftRadius: '40px', borderBottomRightRadius: '40px' }} 
+              title="Change Profile Picture"
+              onClick={() => setShowAvatarMenu(!showAvatarMenu)}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', margin: '0 auto' }}>
                 <path d="M12 20h9"></path>
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
               </svg>
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePicUpload} />
-            </label>
+            </div>
+            
+            {showAvatarMenu && (
+              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, width: '160px', overflow: 'hidden', marginTop: '4px' }}>
+                <div 
+                  onClick={() => { fileInputRef.current?.click(); setShowAvatarMenu(false); }}
+                  style={{ padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', color: '#1e293b' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                >
+                  Choose from device
+                </div>
+                <div 
+                  onClick={() => { setProfilePic(''); setShowAvatarMenu(false); }}
+                  style={{ padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', color: '#ef4444' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                >
+                  Remove current
+                </div>
+              </div>
+            )}
+            <input type="file" accept="image/*" style={{ display: 'none' }} ref={fileInputRef} onChange={handlePicUpload} />
           </div>
           <div className="settings-profile-info">
             <div className="settings-profile-name">{userDetails.name}</div>

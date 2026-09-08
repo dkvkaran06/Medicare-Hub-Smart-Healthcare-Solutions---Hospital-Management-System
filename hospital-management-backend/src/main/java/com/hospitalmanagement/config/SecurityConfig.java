@@ -62,7 +62,7 @@ public class SecurityConfig {
                         .antMatchers(HttpMethod.GET, "/api/appointments/**").authenticated()
                         .antMatchers(HttpMethod.POST, "/api/appointments/**").hasAnyRole("ADMIN", "PATIENT")
                         .antMatchers(HttpMethod.PUT, "/api/appointments/**").hasAnyRole("ADMIN", "DOCTOR")
-                        .antMatchers(HttpMethod.DELETE, "/api/appointments/**").hasRole("ADMIN")
+                        .antMatchers(HttpMethod.DELETE, "/api/appointments/**").hasAnyRole("ADMIN", "PATIENT")
 
                         // Medical records: read scoped in the controller; doctors/admins may
                         // create+update, only admins may delete.

@@ -190,6 +190,10 @@ export default function Appointments() {
     if (activeTab === 'Cancelled') return status === 'CANCELLED';
     if (activeTab === 'Missed')    return isPast && status === 'SCHEDULED';
     return true;
+  }).sort((a, b) => {
+    const dateA = new Date(`${a.appointmentDate}T${a.appointmentTime || '00:00'}`);
+    const dateB = new Date(`${b.appointmentDate}T${b.appointmentTime || '00:00'}`);
+    return dateB - dateA;
   });
 
   const canAdd    = isAdmin || isPatient;
@@ -328,7 +332,7 @@ export default function Appointments() {
 
                   <div className="apt-card-actions">
                     {canEdit && <button className="btn-edit" onClick={() => handleEdit(apt)}>✏ Edit</button>}
-                    {isUpcoming && canDelete && (
+                    {isUpcoming && (canDelete || isPatient) && (
                       <button className="btn-delete" onClick={() => handleDelete(apt.id)}>🗑 Cancel</button>
                     )}
                   </div>
