@@ -55,6 +55,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [apts, setApts] = useState([]);
   const [docs, setDocs] = useState([]);
+  const [docSearch, setDocSearch] = useState('');
+  
+  const navigate = useNavigate();
   
   useEffect(() => {
     async function load() {
@@ -98,8 +101,8 @@ export default function Dashboard() {
   };
 
   const docImage = (id) => {
-    // Predictably assign male/female photo based on doctor ID
-    return (id % 2 === 0) ? '/images/female_doc.jpg' : '/images/male_doc.jpg';
+    const imageId = (id % 15) + 1;
+    return `/images/doctors/doc_${imageId}.jpg`;
   };
 
   const docSpec = (id) => {
@@ -114,7 +117,7 @@ export default function Dashboard() {
                        .sort((a,b) => a.appointmentDate.localeCompare(b.appointmentDate) || a.appointmentTime.localeCompare(b.appointmentTime));
   
   const nextAppointment = upcoming.length > 0 ? upcoming[0] : null;
-  const recentApts = apts.slice(-2).reverse(); // Limit to 2 for compact fit
+  const recentApts = apts.slice(-4).reverse(); // Show 4 most recent
 
   // Chart Mock Data
   const lineChartData = [
@@ -150,7 +153,7 @@ export default function Dashboard() {
         <div>
           <div className="section-header">
             <h3>Upcoming Schedule</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>View All</span>
+            <span onClick={() => navigate('/appointments')} style={{ fontSize: '0.8rem', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>View All</span>
           </div>
           <div className="pill-list">
             {upcoming.slice(0,2).map((apt, i) => (
@@ -169,7 +172,7 @@ export default function Dashboard() {
                 </div>
                 <div className="pill-right">
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)' }}>{formatTime(apt.appointmentTime)}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-text-muted)' }}><path d="m9 18 6-6-6-6"/></svg>
+                  <svg onClick={() => navigate('/appointments')} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-text-muted)', cursor: 'pointer' }}><path d="m9 18 6-6-6-6"/></svg>
                 </div>
               </div>
             ))}
@@ -208,14 +211,14 @@ export default function Dashboard() {
         
         {/* Find Doctor CTA */}
         <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)', marginBottom: '16px', border: '1px solid var(--color-border-light)' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 8, color: '#111827' }}>Find the right doctor for you</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 0, marginBottom: 8, color: '#111827' }}>Find the right doctor for you</h3>
           <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 16 }}>Search by doctor, specialty or department</p>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 12, top: 10, color: '#9CA3AF' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" placeholder="Search doctors or specialties..." style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem' }} />
+              <input type="text" placeholder="Search doctors or specialties..." value={docSearch} onChange={e => setDocSearch(e.target.value)} style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem' }} onKeyDown={e => { if (e.key === 'Enter') navigate(docSearch ? `/doctors?search=${encodeURIComponent(docSearch)}` : "/doctors") }} />
             </div>
-            <Link to="/doctors" style={{ background: '#111827', color: '#fff', padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+            <Link to={docSearch ? `/doctors?search=${encodeURIComponent(docSearch)}` : "/doctors"} style={{ background: '#111827', color: '#fff', padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
               Find Doctor
             </Link>
           </div>
@@ -261,8 +264,8 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
               <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dx={-10} />
-              <Tooltip cursor={{stroke: '#7C3AED', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
-              <Line type="monotone" dataKey="value" stroke="#7C3AED" strokeWidth={3} dot={{r: 4, fill: '#7C3AED', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
+              <Tooltip cursor={{stroke: '#2563EB', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+              <Line type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={3} dot={{r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -271,19 +274,19 @@ export default function Dashboard() {
           <div className="chart-header">
             <h3>Appointments Overview</h3>
             <span style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', gap: 12 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#7C3AED'}}></div> Upcoming</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#111827'}}></div> Cancelled</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#E5E7EB'}}></div> Missed</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#2563EB'}}></div> Upcoming</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#94A3B8'}}></div> Cancelled</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#F43F5E'}}></div> Missed</span>
             </span>
           </div>
           <ResponsiveContainer width="100%" height="80%">
-            <BarChart data={barChartData} barSize={12}>
+            <BarChart data={barChartData} barSize={10} barGap={4}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
               <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dx={-10} label={{ value: 'Appointments', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 12, dy: 40 }} />
               <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
-              <Bar dataKey="Upcoming" fill="#7C3AED" radius={[10, 10, 10, 10]} />
-              <Bar dataKey="Cancelled" fill="#111827" radius={[10, 10, 10, 10]} />
-              <Bar dataKey="Missed" fill="#E5E7EB" radius={[10, 10, 10, 10]} />
+              <Bar dataKey="Upcoming" fill="#2563EB" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Cancelled" fill="#94A3B8" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Missed" fill="#F43F5E" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -292,7 +295,7 @@ export default function Dashboard() {
       {/* ─── RIGHT COLUMN ─── */}
       <div className="dash-col-right">
         {nextAppointment ? (
-          <div className="featured-doctor-card" style={{ background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%)', position: 'relative', padding: '24px 24px 0 24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, borderRadius: 'var(--radius-lg)', border: 'none', boxShadow: 'none' }}>
+          <div className="featured-doctor-card" style={{ background: '#ffffff', position: 'relative', padding: '24px 24px 0 24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
             
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, textAlign: 'left' }}>
@@ -300,7 +303,7 @@ export default function Dashboard() {
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 500, color: '#1F2937', margin: 0 }}>Upcoming</h3>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 500, color: '#1F2937', margin: 0 }}>Appointments</h3>
                </div>
-               <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#4B5563' }}>
+               <div onClick={() => navigate('/appointments')} style={{ width: 44, height: 44, borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#4B5563' }}>
                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                </div>
             </div>
@@ -314,7 +317,7 @@ export default function Dashboard() {
                     {docSpec(nextAppointment.doctorId)}
                  </span>
                </div>
-               <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', flexShrink: 0 }}>
+               <div onClick={() => alert('Messaging feature coming soon!')} style={{ width: 48, height: 48, borderRadius: '50%', background: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', flexShrink: 0 }}>
                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></svg>
                </div>
             </div>
@@ -327,8 +330,8 @@ export default function Dashboard() {
             {/* Overlapping Info Card */}
             <div style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)', borderRadius: '24px 24px var(--radius-lg) var(--radius-lg)', padding: '24px', margin: '0 -24px 0 -24px', zIndex: 10, position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 8px 0', color: '#1F2937' }}>About {docName(nextAppointment.doctorId)}</h3>
-               <p style={{ fontSize: '0.85rem', color: '#9CA3AF', margin: '0 0 20px 0', lineHeight: 1.5 }}>
-                 She is a senior cardiologist with over 12 years of experience in interventional cardiology, specializing in coronary artery disease and heart... <span style={{ color: '#9CA3AF', cursor: 'pointer' }}>Read more</span>
+               <p style={{ fontSize: '0.85rem', color: '#9CA3AF', margin: '0 0 20px 0', lineHeight: 1.5, textAlign: 'justify' }}>
+                 She is a senior cardiologist with over 12 years of experience in interventional cardiology, specializing in coronary artery disease and heart... <Link to={`/doctors?search=${encodeURIComponent(docName(nextAppointment.doctorId))}`} style={{ color: '#2563EB', cursor: 'pointer', textDecoration: 'none', fontWeight: 500 }}>Read more</Link>
                </p>
 
                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>

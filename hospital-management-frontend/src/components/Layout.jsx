@@ -9,7 +9,7 @@ const adminLinks = [
   {
     group: 'MAIN',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+      { to: '/dashboard', label: 'Home', icon: 'dashboard' },
       { to: '/doctors', label: 'Doctors', icon: 'doctors' },
       { to: '/patients', label: 'Patients', icon: 'patients' },
       { to: '/departments', label: 'Departments', icon: 'departments' },
@@ -35,7 +35,7 @@ const doctorLinks = [
   {
     group: 'MAIN',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+      { to: '/dashboard', label: 'Home', icon: 'dashboard' },
       { to: '/appointments', label: 'Appointments', icon: 'appointments' },
       { to: '/patients', label: 'Patients', icon: 'patients' },
     ]
@@ -58,7 +58,7 @@ const patientLinks = [
   {
     group: 'MAIN',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+      { to: '/dashboard', label: 'Home', icon: 'dashboard' },
       { to: '/doctors', label: 'Doctors', icon: 'doctors' },
       { to: '/appointments', label: 'Appointments', icon: 'appointments' },
     ]

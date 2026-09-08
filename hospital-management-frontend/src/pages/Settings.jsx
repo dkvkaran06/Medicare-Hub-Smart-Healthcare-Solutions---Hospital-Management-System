@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMe, updateMe, deleteMe } from '../api/hospitalApi';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { getCroppedImgAsBase64 } from '../utils/cropImage';
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState(null); // 'profile' | 'security' | 'delete'
@@ -9,7 +12,7 @@ export default function Settings() {
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState('');
   const [userDetails, setUserDetails] = useState(null);
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName]               = useState('');
@@ -18,6 +21,13 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [profilePic, setProfilePic] = useState('');
+
+  // Cropper state
+  const imgRef = useRef(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [crop, setCrop] = useState();
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const [showCropModal, setShowCropModal] = useState(false);
 
   useEffect(() => { fetchMe(); }, []);
 
@@ -33,13 +43,31 @@ export default function Settings() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64String = reader.result;
-        setProfilePic(base64String);
-        localStorage.setItem(`profile_pic_${user?.email}`, base64String);
-        window.dispatchEvent(new Event('profilePicUpdated'));
+        setSelectedImage(reader.result);
+        setShowCropModal(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSaveCrop = async () => {
+    try {
+      const croppedImageBase64 = await getCroppedImgAsBase64(imgRef.current, completedCrop);
+      if (croppedImageBase64) {
+        setProfilePic(croppedImageBase64);
+        localStorage.setItem(`profile_pic_${user?.email}`, croppedImageBase64);
+        window.dispatchEvent(new Event('profilePicUpdated'));
+      }
+      setShowCropModal(false);
+      setSelectedImage(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCancelCrop = () => {
+    setShowCropModal(false);
+    setSelectedImage(null);
   };
 
   const fetchMe = async () => {
@@ -47,6 +75,8 @@ export default function Settings() {
       const res = await getMe();
       setUserDetails(res.data);
       setName(res.data.name);
+      // Sync global state with fresh DB data on load in case localStorage was stale
+      setUser(prev => ({ ...prev, ...res.data }));
     } catch (err) { console.error(err); }
   };
 
@@ -61,6 +91,7 @@ export default function Settings() {
       const res = await updateMe(payload);
       setSuccess('Account updated successfully!');
       setUserDetails(res.data);
+      setUser(prev => ({ ...prev, ...res.data }));
       setOldPassword(''); setNewPassword(''); setConfirmPassword('');
       setTimeout(() => { setActiveSection(null); setSuccess(''); }, 2000);
     } catch (err) { setError(err.response?.data?.error || 'Failed to update account'); }
@@ -259,6 +290,36 @@ export default function Settings() {
           </div>
         )}
       </div>
+
+      {/* ── Crop Modal Overlay ── */}
+      {showCropModal && (
+        <div className="crop-modal-overlay">
+          <div className="crop-modal-content">
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>Crop Profile Picture</h3>
+            <div className="crop-container" style={{ display: 'flex', justifyContent: 'center', backgroundColor: '#333', padding: '10px', overflow: 'auto' }}>
+              <ReactCrop
+                crop={crop}
+                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                onComplete={(c) => setCompletedCrop(c)}
+              >
+                <img
+                  ref={imgRef}
+                  src={selectedImage}
+                  alt="Crop me"
+                  style={{ maxHeight: '350px', maxWidth: '100%' }}
+                  onLoad={() => {
+                     setCrop({ unit: '%', width: 50, height: 50, x: 25, y: 25 });
+                  }}
+                />
+              </ReactCrop>
+            </div>
+            <div className="crop-controls">
+              <button className="btn-cancel" onClick={handleCancelCrop}>Cancel</button>
+              <button className="btn-save" onClick={handleSaveCrop}>Save Picture</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

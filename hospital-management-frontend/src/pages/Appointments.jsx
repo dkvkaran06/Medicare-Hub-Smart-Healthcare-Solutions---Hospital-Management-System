@@ -77,8 +77,9 @@ export default function Appointments() {
 
   const myPatientId = useMemo(() => {
     if (!isPatient) return null;
-    return patients.find(p => p.email === user?.email)?.id ?? null;
-  }, [patients, user, isPatient]);
+    if (patients.length > 0) return patients[0].id;
+    return null;
+  }, [patients, isPatient]);
 
   const myDoctorId = useMemo(() => {
     if (!isDoctor) return null;
@@ -145,12 +146,23 @@ export default function Appointments() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...form, patientId: Number(form.patientId), doctorId: Number(form.doctorId) };
+    const payload = { 
+      ...form, 
+      patientId: form.patientId ? Number(form.patientId) : null, 
+      doctorId: form.doctorId ? Number(form.doctorId) : null 
+    };
     try {
       if (form.id) { await updateAppointment(form.id, payload); showMessage('Appointment updated successfully', 'success'); }
       else { await createAppointment(payload); showMessage('Appointment created successfully', 'success'); }
       resetForm(); await loadData(true);
-    } catch (err) { showMessage(err.response?.data?.message || 'Failed to save appointment', 'error'); }
+    } catch (err) { 
+      if (err.response?.data?.fieldErrors) {
+        const errors = err.response.data.fieldErrors;
+        showMessage(Object.values(errors).join(', '), 'error');
+      } else {
+        showMessage(err.response?.data?.message || 'Failed to save appointment', 'error'); 
+      }
+    }
   };
 
   const handleEdit = (apt) => { setForm({ ...apt, patientId: apt.patientId ? String(apt.patientId) : '', doctorId: apt.doctorId ? String(apt.doctorId) : '' }); setShowForm(true); };

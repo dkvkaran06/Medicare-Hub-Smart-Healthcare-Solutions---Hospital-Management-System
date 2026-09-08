@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { invalidateAll } from '../api/cache';
+import { getMe } from '../api/hospitalApi';
 
 const AuthContext = createContext(null);
 
@@ -23,6 +24,17 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
+  // Fetch the latest user details on initial load so the global state is never stale
+  useEffect(() => {
+    if (user?.email) {
+      getMe().then(res => {
+        if (res.data && res.data.name !== user.name) {
+          setUser(prev => ({ ...prev, ...res.data }));
+        }
+      }).catch(err => console.error('Failed to sync user data', err));
+    }
+  }, [user?.email]);
+
   const login = (userData) => {
     invalidateAll();
     setUser(userData);
@@ -36,7 +48,7 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

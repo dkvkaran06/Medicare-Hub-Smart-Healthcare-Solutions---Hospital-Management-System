@@ -2195,6 +2195,64 @@ tbody tr:hover {
 }
 .settings-profile-name { font-size: 1.15rem; font-weight: 700; color: var(--color-text); }
 .settings-profile-email { font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 3px; }
+
+/* ─── Crop Modal ─── */
+.crop-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.crop-modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.crop-container {
+  position: relative;
+  width: 100%;
+  height: 350px;
+  background: #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crop-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.crop-controls button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.crop-controls .btn-cancel {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.crop-controls .btn-save {
+  background: var(--color-primary);
+  color: white;
+}
 .settings-section-label {
   font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted);
   letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; padding-left: 4px;
@@ -2272,10 +2330,10 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 40px;
+  padding: 12px 20px;
   background: var(--color-white);
   border-radius: var(--radius-lg);
-  margin: 20px 40px;
+  margin: 12px 20px;
   box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 100;
@@ -2284,8 +2342,8 @@ tbody tr:hover {
 .top-nav-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 1.25rem;
+  gap: 8px;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: -0.5px;
@@ -2310,7 +2368,7 @@ tbody tr:hover {
 .top-nav-links {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   background: var(--color-border-light);
   padding: 4px;
   border-radius: 999px;
@@ -2319,12 +2377,12 @@ tbody tr:hover {
 .top-nav-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 4px;
+  padding: 4px 8px;
   border-radius: 999px;
   color: var(--color-text-secondary);
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   transition: all var(--transition);
 }
 
@@ -2351,7 +2409,7 @@ tbody tr:hover {
 .top-nav-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
 .nav-icon-btn {
@@ -2725,7 +2783,7 @@ body {
   display: none;
 }
 .top-nav-horizontal {
-  gap: 32px;
+  gap: 12px;
 }
 .top-nav-logo {
   flex-shrink: 0;
@@ -2740,8 +2798,8 @@ body {
 }
 
 .top-nav-horizontal {
-  padding: 12px 32px;
-  margin: 12px 32px;
+  padding: 8px 16px;
+  margin: 8px 16px;
 }
 
 .dashboard-grid {
@@ -2800,8 +2858,9 @@ body {
 }
 
 .top-nav-horizontal {
-  padding: 8px 32px !important;
-  margin: 12px 32px 8px 32px !important;
+  padding: 8px 24px !important;
+  margin: 12px 24px 8px 24px !important;
+  gap: 16px;
 }
 
 .dashboard-grid {

@@ -21,14 +21,23 @@ function SkeletonCard() {
   );
 }
 
-function DoctorAvatar({ name }) {
-  const initials = name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'DR';
-  const colors = ['#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626', '#0891B2'];
-  const color = colors[(name?.charCodeAt(0) || 0) % colors.length];
+function DoctorAvatar({ doctor }) {
+  if (!doctor || !doctor.name) {
+    return <div className="doctor-card-avatar" style={{ background: '#f1f5f9' }}>DR</div>;
+  }
+  
+  // Since we have exactly 15 unique images, we can map them deterministically by ID
+  // to ensure there are no collisions for the 15 doctors
+  const imageId = ((doctor.id || 1) % 15) + 1;
+  const imgUrl = `/images/doctors/doc_${imageId}.jpg`;
+
   return (
-    <div className="doctor-card-avatar" style={{ background: `${color}20`, color }}>
-      {initials}
-    </div>
+    <img 
+      src={imgUrl} 
+      alt={doctor.name} 
+      className="doctor-card-avatar" 
+      style={{ objectFit: 'cover', border: 'none', background: '#f1f5f9' }} 
+    />
   );
 }
 
@@ -101,10 +110,11 @@ export default function Doctors() {
   }, [doctors]);
 
   const filtered = doctors.filter(d => {
-    const matchesSearch = !searchTerm ||
-      d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.specialization?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const cleanSearch = searchTerm ? searchTerm.trim().toLowerCase() : '';
+    const matchesSearch = !cleanSearch ||
+      d.name?.toLowerCase().includes(cleanSearch) ||
+      d.specialization?.toLowerCase().includes(cleanSearch) ||
+      d.email?.toLowerCase().includes(cleanSearch);
     const matchesSpec = activeSpec === 'All' || d.specialization === activeSpec;
     return matchesSearch && matchesSpec;
   });
@@ -174,7 +184,7 @@ export default function Doctors() {
               : filtered.map(doctor => (
                 <div key={doctor.id} className="doctor-card">
                   <div className="doctor-card-header">
-                    <DoctorAvatar name={doctor.name} />
+                    <DoctorAvatar doctor={doctor} />
                     <div className="doctor-card-meta">
                       <div className="doctor-card-name">{doctor.name}</div>
                       {doctor.specialization && (
@@ -227,7 +237,7 @@ export default function Doctors() {
                     <tr key={doctor.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <DoctorAvatar name={doctor.name} />
+                          <DoctorAvatar doctor={doctor} />
                           <span style={{ fontWeight: 500 }}>{doctor.name}</span>
                         </div>
                       </td>
