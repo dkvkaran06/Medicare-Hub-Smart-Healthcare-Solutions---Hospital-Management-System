@@ -54,7 +54,7 @@ public class HomeController {
         + "    <h1>Medicare Hub API</h1>\n"
         + "    <p class='sub'>Backend service for the Medicare Hub Hospital Management System. It is running and healthy.</p>\n"
         + "    <div class='row'>\n"
-        + "      <a class='btn primary' href='https://medicare-hub-smart-healthcare-solut.vercel.app'>Open the app</a>\n"
+        + "      <a class='btn primary' href='https://medicare-hub-smart-healthcare-solut-ochre.vercel.app'>Open the app</a>\n"
         + "      <a class='btn' href='/healthz'>Health check</a>\n"
         + "    </div>\n"
         + "    <p class='note'>This is an API server, not a website. Endpoints under <code>/api</code> require a valid\n"

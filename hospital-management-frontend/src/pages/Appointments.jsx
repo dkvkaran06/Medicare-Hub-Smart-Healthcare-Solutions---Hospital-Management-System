@@ -222,9 +222,16 @@ export default function Appointments() {
             >
               {tab}
               <span className="apt-tab-count">
-                {tab === 'All' ? baseFiltered.length
-                  : tab === 'Upcoming'  ? baseFiltered.filter(a => a.appointmentDate >= today && a.status?.toUpperCase() === 'SCHEDULED').length
-                  : baseFiltered.filter(a => a.status?.toUpperCase() === tab.toUpperCase()).length}
+                {baseFiltered.filter(apt => {
+                  const isPast = apt.appointmentDate < today;
+                  const status = apt.status?.toUpperCase();
+                  if (tab === 'All')       return true;
+                  if (tab === 'Upcoming')  return !isPast && status === 'SCHEDULED';
+                  if (tab === 'Completed') return status === 'COMPLETED';
+                  if (tab === 'Cancelled') return status === 'CANCELLED';
+                  if (tab === 'Missed')    return isPast && status === 'SCHEDULED';
+                  return false;
+                }).length}
               </span>
             </button>
           ))}

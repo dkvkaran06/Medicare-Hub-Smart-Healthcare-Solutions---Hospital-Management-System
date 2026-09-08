@@ -2085,10 +2085,10 @@ tbody tr:hover {
 .apt-tab-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 20px; height: 20px; border-radius: 10px;
-  background: currentColor; opacity: 0.12;
+  background: #E2E8F0; color: var(--color-text-secondary);
   font-size: 0.7rem; font-weight: 700; padding: 0 5px;
 }
-.apt-tab.active .apt-tab-count { background: var(--color-primary); opacity: 1; color: #fff; }
+.apt-tab.active .apt-tab-count { background: var(--color-primary); color: #fff; }
 
 .apt-card-list { display: flex; flex-direction: column; gap: 16px; }
 .apt-card {
