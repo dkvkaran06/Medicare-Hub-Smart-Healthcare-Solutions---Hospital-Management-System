@@ -3,6 +3,7 @@ import client from './client';
 // Auth & Users
 export const registerUser = (userData) => client.post('/auth/register', userData);
 export const loginUser = (credentials) => client.post('/auth/login', credentials);
+export const forgotPassword = (data) => client.post('/auth/forgot-password', data);
 export const getMe = () => client.get('/auth/me');
 export const updateMe = (data) => client.put('/auth/me', data);
 export const deleteMe = () => client.delete('/auth/me');

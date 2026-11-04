@@ -13,4 +13,6 @@ public interface AuthService {
     Map<String, Object> updateMe(String email, Map<String, String> request);
 
     void deleteMe(String email);
+
+    void resetPassword(String email, String newPassword);
 }

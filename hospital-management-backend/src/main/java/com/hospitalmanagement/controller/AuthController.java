@@ -63,6 +63,26 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            String newPassword = request.get("newPassword");
+
+            if (email == null || email.trim().isEmpty() || newPassword == null || newPassword.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Email and new password are required."));
+            }
+
+            authService.resetPassword(email, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now login with your new password."));
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/me")
     public ResponseEntity<?> getMe(java.security.Principal principal) {
         try {

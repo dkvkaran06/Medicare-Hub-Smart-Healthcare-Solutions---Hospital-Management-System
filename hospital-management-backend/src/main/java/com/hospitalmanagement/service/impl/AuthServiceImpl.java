@@ -155,6 +155,7 @@ public class AuthServiceImpl implements AuthService {
         response.put("token", jwtService.generateToken(user.getEmail(), user.getRole().name()));
         return response;
     }
+
     @Override
     public Map<String, Object> me(String email) {
         User user = userRepository.findByEmail(email)
@@ -231,5 +232,21 @@ public class AuthServiceImpl implements AuthService {
         }
         
         userRepository.delete(user);
+    }
+
+    @Override
+    public void resetPassword(String email, String newPassword) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new RuntimeException("Email is required.");
+        }
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new RuntimeException("Password must be at least 6 characters.");
+        }
+
+        User user = userRepository.findByEmail(email.trim())
+                .orElseThrow(() -> new RuntimeException("No account found with this email: " + email.trim()));
+
+        user.setPassword(passwordEncoder.encode(newPassword.trim()));
+        userRepository.save(user);
     }
 }
