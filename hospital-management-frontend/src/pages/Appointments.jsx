@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   createAppointment, deleteAppointment, getAppointments,
-  getDoctorByEmail, getDoctors, getPatientByEmail, getPatients, updateAppointment
+  getDoctorByEmail, getDoctors, getPatientByEmail, getPatients, createPatient, updateAppointment
 } from '../api/hospitalApi';
 import { cachedFetch, invalidate } from '../api/cache';
 import { useAuth } from '../context/AuthContext';
@@ -86,23 +86,54 @@ export default function Appointments() {
     return doctors.find(d => d.email === user?.email)?.id ?? null;
   }, [doctors, user, isDoctor]);
 
+  // Handle URL query parameters (e.g. ?bookDoctor=1 or ?date=...)
   useEffect(() => {
     const d = searchParams.get('date');
     if (d) setFilterDate(d);
 
     const docId = searchParams.get('bookDoctor');
-    if (docId && isPatient && myPatientId) {
-      setForm({ ...emptyForm, doctorId: docId, patientId: String(myPatientId) });
+    if (docId) {
+      setForm(prev => ({
+        ...emptyForm,
+        doctorId: String(docId),
+        patientId: isPatient && myPatientId ? String(myPatientId) : prev.patientId || ''
+      }));
       setShowForm(true);
       navigate('/appointments', { replace: true });
     }
   }, [searchParams, isPatient, myPatientId, navigate]);
 
+  // Keep form.patientId synced when patient record loads after showForm is opened
+  useEffect(() => {
+    if (isPatient && myPatientId && showForm && !form.patientId) {
+      setForm(prev => ({ ...prev, patientId: String(myPatientId) }));
+    }
+  }, [isPatient, myPatientId, showForm, form.patientId]);
+
   const loadData = async (bustCache = false) => {
     if (bustCache) { invalidate('appointments'); invalidate('patients'); invalidate('doctors'); }
     if (isPatient) {
       let myPat = null;
-      try { myPat = (await getPatientByEmail(user.email)).data; } catch { myPat = null; }
+      try {
+        myPat = (await getPatientByEmail(user.email)).data;
+      } catch {
+        // Fallback: auto-create patient profile if missing
+        try {
+          const created = await createPatient({
+            name: user.name || 'Patient',
+            email: user.email,
+            age: 25,
+            gender: 'Other',
+            phone: '0770000000',
+            address: 'Local',
+            bloodGroup: 'O+'
+          });
+          myPat = created.data;
+        } catch {
+          myPat = null;
+        }
+      }
+
       const [aptRes] = await Promise.all([
         myPat ? getAppointments({ patientId: myPat.id }) : Promise.resolve({ data: [] }),
         cachedFetch('doctors', getDoctors, setDoctors) ?? Promise.resolve()
@@ -112,6 +143,7 @@ export default function Appointments() {
       setLoading(false);
       return;
     }
+
     if (isDoctor) {
       let myDoc = null;
       try { myDoc = (await getDoctorByEmail(user.email)).data; } catch { myDoc = null; }
@@ -124,6 +156,7 @@ export default function Appointments() {
       setLoading(false);
       return;
     }
+
     await Promise.all([
       cachedFetch('appointments', getAppointments, (d) => { setAppointments(d); setLoading(false); }),
       cachedFetch('patients', getPatients, setPatients),
@@ -140,51 +173,79 @@ export default function Appointments() {
   const handleChange = (e) => setForm(c => ({ ...c, [e.target.name]: e.target.value }));
   const resetForm = () => { setForm(emptyForm); setShowForm(false); };
   const handleAddNew = () => {
-    setForm({ ...emptyForm, patientId: isPatient ? String(myPatientId) : '' });
+    setForm({ ...emptyForm, patientId: isPatient && myPatientId ? String(myPatientId) : '' });
     setShowForm(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const resolvedPatientId = isPatient ? (myPatientId || form.patientId) : form.patientId;
+    if (!resolvedPatientId) {
+      showMessage('Please select a patient', 'error');
+      return;
+    }
+    if (!form.doctorId) {
+      showMessage('Please select a doctor', 'error');
+      return;
+    }
+
     const payload = { 
       ...form, 
-      patientId: form.patientId ? Number(form.patientId) : null, 
-      doctorId: form.doctorId ? Number(form.doctorId) : null 
+      patientId: Number(resolvedPatientId), 
+      doctorId: Number(form.doctorId) 
     };
+
     try {
-      if (form.id) { await updateAppointment(form.id, payload); showMessage('Appointment updated successfully', 'success'); }
-      else { await createAppointment(payload); showMessage('Appointment created successfully', 'success'); }
-      resetForm(); await loadData(true);
+      if (form.id) {
+        await updateAppointment(form.id, payload);
+        showMessage('Appointment updated successfully', 'success');
+      } else {
+        await createAppointment(payload);
+        showMessage('Appointment created successfully', 'success');
+      }
+      resetForm();
+      await loadData(true);
     } catch (err) { 
       if (err.response?.data?.fieldErrors) {
         const errors = err.response.data.fieldErrors;
         showMessage(Object.values(errors).join(', '), 'error');
       } else {
-        showMessage(err.response?.data?.message || 'Failed to save appointment', 'error'); 
+        showMessage(err.response?.data?.message || err.response?.data?.error || 'Failed to save appointment', 'error'); 
       }
     }
   };
 
-  const handleEdit = (apt) => { setForm({ ...apt, patientId: apt.patientId ? String(apt.patientId) : '', doctorId: apt.doctorId ? String(apt.doctorId) : '' }); setShowForm(true); };
+  const handleEdit = (apt) => {
+    setForm({
+      ...apt,
+      patientId: apt.patientId ? String(apt.patientId) : '',
+      doctorId: apt.doctorId ? String(apt.doctorId) : ''
+    });
+    setShowForm(true);
+  };
+
   const handleDelete = async (id) => {
-    try { await deleteAppointment(id); showMessage('Deleted successfully', 'success'); await loadData(true); }
-    catch (err) { showMessage(err.response?.data?.message || 'Failed to delete', 'error'); }
+    try {
+      await deleteAppointment(id);
+      showMessage('Deleted successfully', 'success');
+      await loadData(true);
+    } catch (err) {
+      showMessage(err.response?.data?.message || 'Failed to delete appointment', 'error');
+    }
   };
 
   const today = new Date().toISOString().split('T')[0];
 
   const baseFiltered = appointments.filter(apt => {
-    if (isPatient && apt.patientId !== myPatientId) return false;
-    if (isDoctor  && apt.doctorId  !== myDoctorId)  return false;
-    if (filterDate   && apt.appointmentDate !== filterDate) return false;
-    if (filterDoctor && String(apt.doctorId) !== filterDoctor) return false;
-    return true;
+    const matchesDate = !filterDate || apt.appointmentDate === filterDate;
+    const matchesDoctor = !filterDoctor || String(apt.doctorId) === String(filterDoctor);
+    return matchesDate && matchesDoctor;
   });
 
   const tabFiltered = baseFiltered.filter(apt => {
+    if (activeTab === 'All') return true;
     const isPast = apt.appointmentDate < today;
     const status = apt.status?.toUpperCase();
-    if (activeTab === 'All')       return true;
     if (activeTab === 'Upcoming')  return !isPast && status === 'SCHEDULED';
     if (activeTab === 'Completed') return status === 'COMPLETED';
     if (activeTab === 'Cancelled') return status === 'CANCELLED';
