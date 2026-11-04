@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 .env
 *.local
@@ -8,3 +8,4 @@ target/
 .vscode/
 
 .vercel
+.agents/

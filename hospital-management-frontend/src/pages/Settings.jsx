@@ -141,7 +141,7 @@ export default function Settings() {
             </div>
             
             {showAvatarMenu && (
-              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, width: '160px', overflow: 'hidden', marginTop: '4px' }}>
+              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', background: 'var(--color-white)', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, width: '160px', overflow: 'hidden', marginTop: '4px' }}>
                 <div 
                   onClick={() => { fileInputRef.current?.click(); setShowAvatarMenu(false); }}
                   style={{ padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', color: '#1e293b' }}
@@ -174,7 +174,7 @@ export default function Settings() {
       <div className="settings-section-label">ACCOUNT</div>
       <div className="settings-group">
         <button className="settings-row" onClick={() => { setActiveSection(activeSection === 'profile' ? null : 'profile'); setError(''); setSuccess(''); }}>
-          <div className="settings-row-icon" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+          <div className="settings-row-icon" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
           <div className="settings-row-body">
@@ -246,7 +246,7 @@ export default function Settings() {
         )}
 
         <button className="settings-row" onClick={() => { setActiveSection(activeSection === 'security' ? null : 'security'); setError(''); setSuccess(''); }}>
-          <div className="settings-row-icon" style={{ background: '#F0FDF4', color: '#16A34A' }}>
+          <div className="settings-row-icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
           <div className="settings-row-body">
@@ -260,7 +260,7 @@ export default function Settings() {
         {activeSection === 'security' && (
           <div className="settings-inline-panel">
             {error   && <div className="auth-error">{error}</div>}
-            {success && <div className="auth-error" style={{ background: '#ecfdf5', color: '#065f46', borderColor: '#a7f3d0', border: '1px solid #34d399' }}>{success}</div>}
+            {success && <div className="auth-error" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)', borderColor: 'var(--color-success)', border: '1px solid var(--color-success)' }}>{success}</div>}
             <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="form-group">
                 <label>Full Name</label>

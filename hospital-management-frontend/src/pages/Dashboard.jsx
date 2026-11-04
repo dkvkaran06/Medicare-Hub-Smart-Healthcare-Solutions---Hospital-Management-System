@@ -41,12 +41,12 @@ function getStatusBadge(status, date) {
     finalStatus = 'MISSED';
   }
   const map = {
-    SCHEDULED:  { label: 'Upcoming',  color: '#2563EB', bg: '#EFF6FF' },
-    COMPLETED:  { label: 'Completed', color: '#16A34A', bg: '#F0FDF4' },
-    CANCELLED:  { label: 'Cancelled', color: '#DC2626', bg: '#FEF2F2' },
-    MISSED:     { label: 'Missed',    color: '#DC2626', bg: '#FEF2F2' },
+    SCHEDULED:  { label: 'Upcoming',  color: 'var(--color-primary)', bg: 'var(--color-primary-light)' },
+    COMPLETED:  { label: 'Completed', color: 'var(--color-success)', bg: 'var(--color-success-light)' },
+    CANCELLED:  { label: 'Cancelled', color: 'var(--color-danger)', bg: 'var(--color-danger-light)' },
+    MISSED:     { label: 'Missed',    color: 'var(--color-danger)', bg: 'var(--color-danger-light)' },
   };
-  const s = map[finalStatus] || { label: status || '—', color: '#64748B', bg: '#F1F5F9' };
+  const s = map[finalStatus] || { label: status || '—', color: 'var(--color-text-secondary)', bg: '#F1F5F9' };
   return <span style={{ padding: '4px 10px', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, color: s.color, background: s.bg }}>{s.label}</span>;
 }
 
@@ -220,15 +220,15 @@ export default function Dashboard() {
       <div className="dash-col-middle">
         
         {/* Find Doctor CTA */}
-        <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)', marginBottom: '16px', border: '1px solid var(--color-border-light)' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 0, marginBottom: 8, color: '#111827' }}>Find the right doctor for you</h3>
-          <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 16 }}>Search by doctor, specialty or department</p>
+        <div style={{ background: 'var(--color-white)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)', marginBottom: '16px', border: '1px solid var(--color-border-light)' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginTop: 0, marginBottom: 8, color: 'var(--color-text)' }}>Find the right doctor for you</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 16 }}>Search by doctor, specialty or department</p>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 12, top: 10, color: '#9CA3AF' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" placeholder="Search doctors or specialties..." value={docSearch} onChange={e => setDocSearch(e.target.value)} style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem' }} onKeyDown={e => { if (e.key === 'Enter') navigate(docSearch ? `/doctors?search=${encodeURIComponent(docSearch)}` : "/doctors") }} />
+              <input type="text" placeholder="Search doctors or specialties..." value={docSearch} onChange={e => setDocSearch(e.target.value)} style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', outline: 'none', fontSize: '0.9rem' }} onKeyDown={e => { if (e.key === 'Enter') navigate(docSearch ? `/doctors?search=${encodeURIComponent(docSearch)}` : "/doctors") }} />
             </div>
-            <Link to={docSearch ? `/doctors?search=${encodeURIComponent(docSearch)}` : "/doctors"} style={{ background: '#111827', color: '#fff', padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+            <Link to={docSearch ? `/doctors?search=${encodeURIComponent(docSearch)}` : "/doctors"} style={{ background: 'var(--color-primary)', color: '#fff', padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
               Find Doctor
             </Link>
           </div>
@@ -267,14 +267,14 @@ export default function Dashboard() {
         <div className="chart-card" style={{ height: 160 }}>
           <div className="chart-header">
             <h3>Health Score</h3>
-            <span style={{ fontSize: '0.8rem', background: '#F1F5F9', padding: '4px 12px', borderRadius: '999px', color: '#64748B', fontWeight: 600 }}>This Year ▼</span>
+            <span style={{ fontSize: '0.8rem', background: 'var(--color-border-light)', padding: '4px 12px', borderRadius: '999px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>This Year ▼</span>
           </div>
           <ResponsiveContainer width="100%" height="80%">
             <LineChart data={lineChartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
               <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dx={-10} />
-              <Tooltip cursor={{stroke: '#2563EB', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+              <Tooltip cursor={{stroke: '#2563EB', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'var(--color-white)', color: 'var(--color-text)'}} labelStyle={{ color: 'var(--color-text)' }} />
               <Line type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={3} dot={{r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
             </LineChart>
           </ResponsiveContainer>
@@ -283,7 +283,7 @@ export default function Dashboard() {
         <div className="chart-card" style={{ height: 200 }}>
           <div className="chart-header">
             <h3>Appointments Overview</h3>
-            <span style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', gap: 12 }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', display: 'flex', gap: 12 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#2563EB'}}></div> Upcoming</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#94A3B8'}}></div> Cancelled</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><div style={{width: 8, height: 8, borderRadius: '50%', background: '#F43F5E'}}></div> Missed</span>
@@ -293,7 +293,7 @@ export default function Dashboard() {
             <BarChart data={barChartData} barSize={10} barGap={4}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
               <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dx={-10} label={{ value: 'Appointments', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 12, dy: 40 }} />
-              <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+              <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'var(--color-white)', color: 'var(--color-text)'}} labelStyle={{ color: 'var(--color-text)' }} />
               <Bar dataKey="Upcoming" fill="#2563EB" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Cancelled" fill="#94A3B8" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Missed" fill="#F43F5E" radius={[4, 4, 0, 0]} />
@@ -305,15 +305,15 @@ export default function Dashboard() {
       {/* ─── RIGHT COLUMN ─── */}
       <div className="dash-col-right">
         {nextAppointment ? (
-          <div className="featured-doctor-card" style={{ background: '#ffffff', position: 'relative', padding: '24px 24px 0 24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div className="featured-doctor-card" style={{ background: 'var(--color-white)', position: 'relative', padding: '24px 24px 0 24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
             
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, textAlign: 'left' }}>
                <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 500, color: '#1F2937', margin: 0 }}>Upcoming</h3>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 500, color: '#1F2937', margin: 0 }}>Appointments</h3>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 500, color: 'var(--color-text)', margin: 0 }}>Upcoming</h3>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 500, color: 'var(--color-text)', margin: 0 }}>Appointments</h3>
                </div>
-               <div onClick={() => navigate('/appointments')} style={{ width: 44, height: 44, borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#4B5563' }}>
+               <div onClick={() => navigate('/appointments')} style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#4B5563' }}>
                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                </div>
             </div>
@@ -321,7 +321,7 @@ export default function Dashboard() {
             {/* Doctor Name & Badge */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, zIndex: 10, position: 'relative', textAlign: 'left' }}>
                <div>
-                 <h2 style={{ fontSize: '1.7rem', fontWeight: 500, margin: '0 0 12px 0', color: '#111827', letterSpacing: '-0.5px' }}>{docName(nextAppointment.doctorId)}</h2>
+                 <h2 style={{ fontSize: '1.7rem', fontWeight: 500, margin: '0 0 12px 0', color: 'var(--color-text)', letterSpacing: '-0.5px' }}>{docName(nextAppointment.doctorId)}</h2>
                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#6366F1', color: '#fff', padding: '6px 16px', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 500 }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     {docSpec(nextAppointment.doctorId)}
@@ -338,31 +338,31 @@ export default function Dashboard() {
             </div>
 
             {/* Overlapping Info Card */}
-            <div style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)', borderRadius: '24px 24px var(--radius-lg) var(--radius-lg)', padding: '24px', margin: '0 -24px 0 -24px', zIndex: 10, position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 8px 0', color: '#1F2937' }}>About {docName(nextAppointment.doctorId)}</h3>
+            <div style={{ background: 'var(--color-white)', borderRadius: '24px 24px var(--radius-lg) var(--radius-lg)', padding: '24px', margin: '0 -24px 0 -24px', zIndex: 10, position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 8px 0', color: 'var(--color-text)' }}>About {docName(nextAppointment.doctorId)}</h3>
                <p style={{ fontSize: '0.85rem', color: '#9CA3AF', margin: '0 0 20px 0', lineHeight: 1.5, textAlign: 'justify' }}>
                  She is a senior cardiologist with over 12 years of experience in interventional cardiology, specializing in coronary artery disease and heart... <Link to={`/doctors?search=${encodeURIComponent(docName(nextAppointment.doctorId))}`} style={{ color: '#2563EB', cursor: 'pointer', textDecoration: 'none', fontWeight: 500 }}>Read more</Link>
                </p>
 
                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 500, color: '#374151', background: '#F8FAFC', padding: '8px 14px', borderRadius: '999px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 500, color: 'var(--color-text)', background: 'var(--color-bg)', padding: '8px 14px', borderRadius: '999px' }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     {formatDateDribbble(nextAppointment.appointmentDate)}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 500, color: '#374151', background: '#F8FAFC', padding: '8px 14px', borderRadius: '999px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 500, color: 'var(--color-text)', background: 'var(--color-bg)', padding: '8px 14px', borderRadius: '999px' }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     45 Minutes
                   </div>
                </div>
 
-               <Link to={`/appointments?date=${nextAppointment.appointmentDate}`} style={{ marginTop: 'auto', background: '#1F2937', color: '#fff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', textDecoration: 'none', fontWeight: 400, fontSize: '0.95rem' }}>
+               <Link to={`/appointments?date=${nextAppointment.appointmentDate}`} style={{ marginTop: 'auto', background: 'var(--color-bg)', color: 'var(--color-text)', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', textDecoration: 'none', fontWeight: 500, fontSize: '0.95rem', transition: 'all 0.2s' }}>
                  Check Appointment
-                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                </Link>
             </div>
           </div>
         ) : (
-          <div className="featured-doctor-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, background: '#fff' }}>
+          <div className="featured-doctor-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, background: 'var(--color-white)' }}>
              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{color: '#E5E7EB', marginBottom: 16}}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 8 }}>No Upcoming Appointments</h3>
              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 24 }}>You don't have any scheduled appointments.</p>
